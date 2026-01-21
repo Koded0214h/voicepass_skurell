@@ -34,6 +34,10 @@ export default function DashboardPage() {
           fetch('/api/billing/balance'),
         ]);
 
+        if (!logsRes.ok || !balanceRes.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+
         const logsData = await logsRes.json();
         const balanceData = await balanceRes.json();
 

@@ -45,7 +45,7 @@ export default function SignupPage() {
         throw new Error(data.error || 'Signup failed');
       }
 
-      router.push('/');
+      router.push('/dashboard');
       router.refresh();
     } catch (err: unknown) {
       if (err instanceof Error) {
