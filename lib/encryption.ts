@@ -18,22 +18,38 @@ export function encrypt(text: string): string {
 }
 
 export function decrypt(text: string): string {
-  const parts = text.split(':');
-  const iv = Buffer.from(parts[0], 'hex');
-  const encryptedText = parts[1];
-  
-  const decipher = crypto.createDecipheriv(
-    ALGORITHM,
-    Buffer.from(ENCRYPTION_KEY.slice(0, 32)),
-    iv
-  );
-  
-  let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  
-  return decrypted;
-}
+  try {
+    const parts = text.split(':');
+    if (parts.length !== 2) {
+      console.warn("Malformed encrypted text, expecting 'iv:encrypted', got:", text);
+      return '[MALFORMED_ENCRYPTED_DATA]';
+    }
+    const iv = Buffer.from(parts[0], 'hex');
+    const encryptedText = parts[1];
 
+    if (iv.length !== 16) {
+      console.warn("Invalid IV length for text:", text, "Length:", iv.length);
+      return '[INVALID_IV_LENGTH]';
+    }
+
+    const decipher = crypto.createDecipheriv(
+      ALGORITHM,
+      Buffer.from(ENCRYPTION_KEY.slice(0, 32)),
+      iv
+    );
+
+    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+
+    return decrypted;
+  } catch (error: any) {
+    console.error('Decryption failed for text:', text, 'Error:', error.message);
+    if (error.code === 'ERR_CRYPTO_INVALID_IV') {
+      return '[DECRYPTION_FAILED_INVALID_IV]';
+    }
+    return '[DECRYPTION_FAILED_UNKNOWN_ERROR]';
+  }
+}
 export async function hashPassword(password: string): Promise<string> {
   const bcrypt = require('bcryptjs');
   return bcrypt.hash(password, 10);

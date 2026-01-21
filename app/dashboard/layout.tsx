@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// Define SessionUser type locally if it's not exported for client-side use
+interface SessionUser {
+  id: string;
+  email: string;
+  name?: string;
+  role?: string;
+}
 
 export default function DashboardLayout({
   children,
@@ -12,19 +20,46 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [showOTPModal, setShowOTPModal] = useState(false);
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        } else {
+          // Handle cases where user is not authenticated or other errors
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user:", error);
+        setUser(null);
+      } finally {
+        setLoadingUser(false);
+      }
+    }
+    fetchUser();
+  }, []);
 
   const navigation = [
-    { name: 'Dashboard', href: '/', icon: 'dashboard' },
-    { name: 'Call Logs', href: '/calls', icon: 'list_alt' },
-    { name: 'Analytics', href: '/analytics', icon: 'analytics' },
-    { name: 'Billing', href: '/billing', icon: 'credit_card' },
-    { name: 'Settings', href: '/settings', icon: 'settings' },
+    { name: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
+    { name: 'Call Logs', href: '/dashboard/calls', icon: 'list_alt' },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: 'analytics' },
+    { name: 'Billing', href: '/dashboard/billing', icon: 'credit_card' },
+    { name: 'Settings', href: '/dashboard/settings', icon: 'settings' },
   ];
-
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   }
+
+  // Helper for avatar initial
+  const getAvatarInitial = (name: string | undefined | null) => {
+    return name ? name.charAt(0).toUpperCase() : 'A';
+  };
 
   return (
     <>
@@ -71,7 +106,10 @@ export default function DashboardLayout({
           {/* Navigation */}
           <nav className="flex-1 flex flex-col gap-1 p-4 overflow-y-auto">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive =
+                item.href === '/dashboard'
+                  ? pathname === '/dashboard' || pathname === '/'
+                  : pathname.startsWith(item.href) && pathname !== '/dashboard';
               return (
                 <Link
                   key={item.name}
@@ -98,20 +136,29 @@ export default function DashboardLayout({
 
           {/* User Footer */}
           <div className="p-4 border-t border-slate-100">
-            <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
-              <div className="size-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-semibold">
-                A
+            {loadingUser ? (
+              <div className="flex items-center gap-3 p-2 rounded-lg animate-pulse">
+                <div className="size-9 rounded-full bg-slate-200"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                  <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900 truncate">Admin User</p>
-                <p className="text-xs text-slate-500 truncate">admin@voicepass.io</p>
+            ) : (
+              <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
+                <div className="size-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-semibold">
+                  {getAvatarInitial(user?.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate">{user?.name || 'Guest'}</p>
+                  <p className="text-xs text-slate-500 truncate">{user?.email || 'guest@example.com'}</p>
+                </div>
+                <button onClick={handleLogout}>
+                  <span className="material-symbols-outlined text-slate-400 text-[20px]">logout</span>
+                </button>
               </div>
-              <button onClick={handleLogout}>
-                <span className="material-symbols-outlined text-slate-400 text-[20px]">logout</span>
-              </button>
-            </div>
-          </div>
-        </aside>
+            )}
+          </div>        </aside>
 
         {/* Main Content */}
         <main className="flex-1 flex flex-col h-screen overflow-hidden bg-[#f9fafa] relative">

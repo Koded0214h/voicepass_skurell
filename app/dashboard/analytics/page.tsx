@@ -1,9 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState('7d');
+  // State for dynamic data (initialize as empty or with default structure)
+  const [kpiData, setKpiData] = useState({
+    successRate: 'N/A',
+    avgResponseTime: 'N/A',
+    peakHour: 'N/A',
+    costEfficiency: 'N/A',
+  });
+  const [hourlyDistribution, setHourlyDistribution] = useState<Array<{ hour: string; calls: number }>>([]);
+  const [statusBreakdown, setStatusBreakdown] = useState<Array<{ label: string; value: number; color: string }>>([]);
+  const [geographicDistribution, setGeographicDistribution] = useState<Array<{ country: string; flag: string; calls: number; percentage: number }>>([]);
+  const [dailySpendTrend, setDailySpendTrend] = useState<Array<{ day: string; amount: number }>>([]);
+  const [topPerformingHours, setTopPerformingHours] = useState<Array<{ time: string; calls: number; successRate: number }>>([]);
+  const [performanceInsights, setPerformanceInsights] = useState({
+    bestDay: 'N/A',
+    avgDailyCalls: 'N/A',
+    costSavings: 'N/A',
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/analytics?timeRange=${timeRange}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch analytics data');
+        }
+        const data = await response.json();
+        setKpiData(data.kpis);
+        setHourlyDistribution(data.hourly);
+        setStatusBreakdown(data.status);
+        setGeographicDistribution(data.geographic ?? []);
+        setDailySpendTrend(data.dailySpend);
+        setTopPerformingHours(data.topHours);
+        setPerformanceInsights(data.insights);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [timeRange]);
+
 
   return (
     <>
@@ -43,220 +89,230 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* KPI Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-slate-500 text-sm font-medium">Success Rate</span>
-                <div className="bg-green-50 p-1.5 rounded-lg">
-                  <span className="material-symbols-outlined text-green-600 text-[18px]">check_circle</span>
+          {loading && <div className="text-center py-8 text-slate-500">Loading analytics data...</div>}
+          {error && <div className="text-center py-8 text-red-500">Error: {error}</div>}
+
+          {!loading && !error && (
+            <>
+              {/* KPI Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Replace with dynamic data */}
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-slate-500 text-sm font-medium">Success Rate</span>
+                    <div className="bg-green-50 p-1.5 rounded-lg">
+                      <span className="material-symbols-outlined text-green-600 text-[18px]">check_circle</span>
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900">{kpiData.successRate}</div>
+                  <div className="flex items-center gap-1 mt-2 text-xs">
+                    {/* Dynamic trend icon and value */}
+                    <span className="material-symbols-outlined text-slate-400 text-[14px]">trending_flat</span>
+                    <span className="text-slate-400">vs last period</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-slate-500 text-sm font-medium">Avg Response Time</span>
+                    <div className="bg-blue-50 p-1.5 rounded-lg">
+                      <span className="material-symbols-outlined text-blue-600 text-[18px]">schedule</span>
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900">{kpiData.avgResponseTime}</div>
+                  <div className="flex items-center gap-1 mt-2 text-xs">
+                    {/* Dynamic trend icon and value */}
+                    <span className="material-symbols-outlined text-slate-400 text-[14px]">trending_flat</span>
+                    <span className="text-slate-400">vs last period</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-slate-500 text-sm font-medium">Peak Hour</span>
+                    <div className="bg-purple-50 p-1.5 rounded-lg">
+                      <span className="material-symbols-outlined text-purple-600 text-[18px]">trending_up</span>
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900">{kpiData.peakHour}</div>
+                  <div className="text-xs text-slate-400 mt-2">Most active time</div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-slate-500 text-sm font-medium">Cost Efficiency</span>
+                    <div className="bg-orange-50 p-1.5 rounded-lg">
+                      <span className="material-symbols-outlined text-orange-600 text-[18px]">savings</span>
+                    </div>
+                  </div>
+                  <div className="text-3xl font-bold text-slate-900">{kpiData.costEfficiency}</div>
+                  <div className="text-xs text-slate-400 mt-2">per successful call</div>
                 </div>
               </div>
-              <div className="text-3xl font-bold text-slate-900">98.5%</div>
-              <div className="flex items-center gap-1 mt-2 text-xs">
-                <span className="material-symbols-outlined text-green-600 text-[14px]">trending_up</span>
-                <span className="text-green-600 font-semibold">+2.3%</span>
-                <span className="text-slate-400">vs last period</span>
-              </div>
-            </div>
 
-            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-slate-500 text-sm font-medium">Avg Response Time</span>
-                <div className="bg-blue-50 p-1.5 rounded-lg">
-                  <span className="material-symbols-outlined text-blue-600 text-[18px]">schedule</span>
+              {/* Charts Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Hourly Distribution */}
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4">Call Distribution by Hour</h3>
+                  <div className="h-64 flex items-end justify-between gap-1">
+                    {/* Use hourlyDistribution data here */}
+                    {hourlyDistribution.map((data, i) => {
+                      // Example: height calculation based on actual calls
+                      // const maxCalls = Math.max(...hourlyDistribution.map(d => d.calls));
+                      // const height = maxCalls > 0 ? (data.calls / maxCalls) * 80 + 20 : 20; // Example: scale to 20-100%
+                      const height = data.calls === 0 ? 5 : (data.calls / 100) * 80 + 20; // Placeholder scaling
+                      return (
+                        <div key={data.hour} className="flex-1 flex flex-col items-center gap-1 group">
+                          <div 
+                            className="w-full bg-[#5da28c] rounded-t hover:bg-[#4a8572] transition-all cursor-pointer"
+                            style={{ height: `${height}%` }}
+                            title={`${data.hour} - ${data.calls} calls`}
+                          ></div>
+                          {i % 3 === 0 && ( // Display hour labels every 3 hours
+                            <span className="text-[10px] text-slate-400">{data.hour.replace('h', '')}h</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {hourlyDistribution.length === 0 && <p className="text-center text-slate-400 w-full">No hourly data available.</p>}
+                  </div>
                 </div>
-              </div>
-              <div className="text-3xl font-bold text-slate-900">2.4s</div>
-              <div className="flex items-center gap-1 mt-2 text-xs">
-                <span className="material-symbols-outlined text-green-600 text-[14px]">trending_down</span>
-                <span className="text-green-600 font-semibold">-0.3s</span>
-                <span className="text-slate-400">faster</span>
-              </div>
-            </div>
 
-            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-slate-500 text-sm font-medium">Peak Hour</span>
-                <div className="bg-purple-50 p-1.5 rounded-lg">
-                  <span className="material-symbols-outlined text-purple-600 text-[18px]">trending_up</span>
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-slate-900">14:00</div>
-              <div className="text-xs text-slate-400 mt-2">Most active time</div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-slate-500 text-sm font-medium">Cost Efficiency</span>
-                <div className="bg-orange-50 p-1.5 rounded-lg">
-                  <span className="material-symbols-outlined text-orange-600 text-[18px]">savings</span>
-                </div>
-              </div>
-              <div className="text-3xl font-bold text-slate-900">₦3.42</div>
-              <div className="text-xs text-slate-400 mt-2">per successful call</div>
-            </div>
-          </div>
-
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Hourly Distribution */}
-            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Call Distribution by Hour</h3>
-              <div className="h-64 flex items-end justify-between gap-1">
-                {Array.from({ length: 24 }, (_, i) => {
-                  const height = Math.random() * 80 + 20;
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                      <div 
-                        className="w-full bg-[#5da28c] rounded-t hover:bg-[#4a8572] transition-all cursor-pointer"
-                        style={{ height: `${height}%` }}
-                        title={`${i}:00 - ${Math.floor(height * 10)} calls`}
-                      ></div>
-                      {i % 3 === 0 && (
-                        <span className="text-[10px] text-slate-400">{i}h</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Status Breakdown */}
-            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              <h3 className="text-lg font-bold text-slate-900 mb-6">Call Status Breakdown</h3>
-              <div className="space-y-4">
-                {[
-                  { label: 'Completed', value: 85, color: 'bg-[#5da28c]' },
-                  { label: 'Answered', value: 10, color: 'bg-blue-500' },
-                  { label: 'Failed', value: 3, color: 'bg-red-500' },
-                  { label: 'No Answer', value: 2, color: 'bg-yellow-500' },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-slate-700">{item.label}</span>
-                      <span className="text-sm font-bold text-slate-900">{item.value}%</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className={`h-full ${item.color} rounded-full transition-all duration-1000`}
-                        style={{ width: `${item.value}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Geographic Distribution */}
-          <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-            <h3 className="text-lg font-bold text-slate-900 mb-6">Geographic Distribution</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { country: 'Nigeria', flag: '🇳🇬', calls: 8540, percentage: 72 },
-                { country: 'Ghana', flag: '🇬🇭', calls: 2100, percentage: 18 },
-                { country: 'Kenya', flag: '🇰🇪', calls: 1180, percentage: 10 },
-              ].map((location) => (
-                <div key={location.country} className="border border-slate-100 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-3xl">{location.flag}</span>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900">{location.country}</div>
-                      <div className="text-sm text-slate-500">{location.calls.toLocaleString()} calls</div>
-                    </div>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="h-full bg-[#5da28c] rounded-full"
-                      style={{ width: `${location.percentage}%` }}
-                    ></div>
-                  </div>
-                  <div className="text-right text-xs text-slate-500 mt-1">{location.percentage}%</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Cost Analysis */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Daily Spend Trend */}
-            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Daily Spend Trend</h3>
-              <div className="h-48 flex items-end justify-between gap-2">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
-                  const height = Math.random() * 70 + 30;
-                  const amount = (height * 2).toFixed(2);
-                  return (
-                    <div key={day} className="flex-1 flex flex-col items-center gap-2">
-                      <div className="text-xs font-semibold text-slate-700">₦{amount}</div>
-                      <div 
-                        className="w-full bg-gradient-to-t from-[#5da28c] to-[#5da28c]/50 rounded-t hover:from-[#4a8572] hover:to-[#4a8572]/50 transition-all cursor-pointer"
-                        style={{ height: `${height}%` }}
-                      ></div>
-                      <span className="text-xs text-slate-500">{day}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Top Performing Hours */}
-            <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Top Performing Hours</h3>
-              <div className="space-y-3">
-                {[
-                  { time: '14:00 - 15:00', calls: 450, successRate: 99.2 },
-                  { time: '10:00 - 11:00', calls: 420, successRate: 98.8 },
-                  { time: '16:00 - 17:00', calls: 380, successRate: 98.5 },
-                  { time: '12:00 - 13:00', calls: 350, successRate: 97.9 },
-                ].map((slot, index) => (
-                  <div key={slot.time} className="flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#5da28c]/10 text-[#5da28c] font-bold text-sm">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-slate-900 text-sm">{slot.time}</div>
-                      <div className="text-xs text-slate-500">{slot.calls} calls</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold text-green-600">{slot.successRate}%</div>
-                      <div className="text-xs text-slate-500">success</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Performance Insights */}
-          <div className="bg-gradient-to-br from-[#5da28c]/10 to-blue-50 rounded-xl p-6 border border-[#5da28c]/20">
-            <div className="flex items-start gap-4">
-              <div className="bg-white p-3 rounded-lg shadow-sm">
-                <span className="material-symbols-outlined text-[#5da28c] text-3xl">insights</span>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Performance Insights</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white/80 backdrop-blur rounded-lg p-4">
-                    <div className="text-sm text-slate-600 mb-1">Best Day</div>
-                    <div className="text-xl font-bold text-slate-900">Thursday</div>
-                    <div className="text-xs text-slate-500">99.1% success rate</div>
-                  </div>
-                  <div className="bg-white/80 backdrop-blur rounded-lg p-4">
-                    <div className="text-sm text-slate-600 mb-1">Avg Daily Calls</div>
-                    <div className="text-xl font-bold text-slate-900">1,780</div>
-                    <div className="text-xs text-slate-500">+12% from last week</div>
-                  </div>
-                  <div className="bg-white/80 backdrop-blur rounded-lg p-4">
-                    <div className="text-sm text-slate-600 mb-1">Cost Savings</div>
-                    <div className="text-xl font-bold text-green-600">₦2,450</div>
-                    <div className="text-xs text-slate-500">vs SMS this month</div>
+                {/* Status Breakdown */}
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                  <h3 className="text-lg font-bold text-slate-900 mb-6">Call Status Breakdown</h3>
+                  <div className="space-y-4">
+                    {/* Use statusBreakdown data here */}
+                    {statusBreakdown.map((item) => (
+                      <div key={item.label}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                          <span className="text-sm font-bold text-slate-900">{item.value}%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                          <div 
+                            className={`h-full ${item.color} rounded-full transition-all duration-1000`}
+                            style={{ width: `${item.value}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                    {statusBreakdown.length === 0 && <p className="text-center text-slate-400">No status breakdown data available.</p>}
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+
+              {/* Geographic Distribution */}
+              <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                <h3 className="text-lg font-bold text-slate-900 mb-6">Geographic Distribution</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Use geographicDistribution data here */}
+                  {geographicDistribution.map((location) => (
+                    <div key={location.country} className="border border-slate-100 rounded-lg p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="text-3xl">{location.flag}</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-slate-900">{location.country}</div>
+                          <div className="text-sm text-slate-500">{location.calls.toLocaleString()} calls</div>
+                        </div>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="h-full bg-[#5da28c] rounded-full"
+                          style={{ width: `${location.percentage}%` }}
+                        ></div>
+                      </div>
+                      <div className="text-right text-xs text-slate-500 mt-1">{location.percentage}%</div>
+                    </div>
+                  ))}
+                  {geographicDistribution.length === 0 && <p className="text-center text-slate-400 w-full col-span-full">No geographic data available.</p>}
+                </div>
+              </div>
+
+              {/* Cost Analysis */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Daily Spend Trend */}
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4">Daily Spend Trend</h3>
+                  <div className="h-48 flex items-end justify-between gap-2">
+                    {/* Use dailySpendTrend data here */}
+                    {dailySpendTrend.map((data) => {
+                      // Example: height calculation based on actual amount
+                      // const maxAmount = Math.max(...dailySpendTrend.map(d => d.amount));
+                      // const height = maxAmount > 0 ? (data.amount / maxAmount) * 70 + 30 : 30; // Example: scale to 30-100%
+                      const height = data.amount === 0 ? 10 : (data.amount / 100) * 70 + 30; // Placeholder scaling
+                      return (
+                        <div key={data.day} className="flex-1 flex flex-col items-center gap-2">
+                          <div className="text-xs font-semibold text-slate-700">₦{data.amount.toFixed(2)}</div>
+                          <div 
+                            className="w-full bg-gradient-to-t from-[#5da28c] to-[#5da28c]/50 rounded-t hover:from-[#4a8572] hover:to-[#4a8572]/50 transition-all cursor-pointer"
+                            style={{ height: `${height}%` }}
+                          ></div>
+                          <span className="text-xs text-slate-500">{data.day}</span>
+                        </div>
+                      );
+                    })}
+                    {dailySpendTrend.length === 0 && <p className="text-center text-slate-400 w-full">No daily spend data available.</p>}
+                  </div>
+                </div>
+
+                {/* Top Performing Hours */}
+                <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4">Top Performing Hours</h3>
+                  <div className="space-y-3">
+                    {/* Use topPerformingHours data here */}
+                    {topPerformingHours.map((slot, index) => (
+                      <div key={slot.time} className="flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#5da28c]/10 text-[#5da28c] font-bold text-sm">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-semibold text-slate-900 text-sm">{slot.time}</div>
+                          <div className="text-xs text-slate-500">{slot.calls} calls</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-bold text-green-600">{slot.successRate}%</div>
+                          <div className="text-xs text-slate-500">success</div>
+                        </div>
+                      </div>
+                    ))}
+                    {topPerformingHours.length === 0 && <p className="text-center text-slate-400">No top performing hours data available.</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance Insights */}
+              <div className="bg-gradient-to-br from-[#5da28c]/10 to-blue-50 rounded-xl p-6 border border-[#5da28c]/20">
+                <div className="flex items-start gap-4">
+                  <div className="bg-white p-3 rounded-lg shadow-sm">
+                    <span className="material-symbols-outlined text-[#5da28c] text-3xl">insights</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Performance Insights</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Use performanceInsights data here */}
+                      <div className="bg-white/80 backdrop-blur rounded-lg p-4">
+                        <div className="text-sm text-slate-600 mb-1">Best Day</div>
+                        <div className="text-xl font-bold text-slate-900">{performanceInsights.bestDay}</div>
+                        <div className="text-xs text-slate-500">99.1% success rate</div>
+                      </div>
+                      <div className="bg-white/80 backdrop-blur rounded-lg p-4">
+                        <div className="text-sm text-slate-600 mb-1">Avg Daily Calls</div>
+                        <div className="text-xl font-bold text-slate-900">{performanceInsights.avgDailyCalls}</div>
+                        <div className="text-xs text-slate-500">vs last week</div>
+                      </div>
+                      <div className="bg-white/80 backdrop-blur rounded-lg p-4">
+                        <div className="text-sm text-slate-600 mb-1">Cost Savings</div>
+                        <div className="text-xl font-bold text-green-600">{performanceInsights.costSavings}</div>
+                        <div className="text-xs text-slate-500">vs SMS this month</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>
