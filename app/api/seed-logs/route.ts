@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       console.log(`Dummy user ${userId} created.`);
     }
 
-    const dummyCallLogs: Prisma.vp_call_logCreateInput[] = [
+    const dummyCallLogs: Prisma.vp_call_logCreateManyInput[] = [
       {
         user_id: userId,
         call_id: 'call_1234567890',
