@@ -1,6 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState('7d');
@@ -13,7 +16,7 @@ export default function AnalyticsPage() {
   });
   const [hourlyDistribution, setHourlyDistribution] = useState<Array<{ hour: string; calls: number }>>([]);
   const [statusBreakdown, setStatusBreakdown] = useState<Array<{ label: string; value: number; color: string }>>([]);
-  const [geographicDistribution, setGeographicDistribution] = useState<Array<{ country: string; flag: string; calls: number; percentage: number }>>([]);
+
   const [dailySpendTrend, setDailySpendTrend] = useState<Array<{ day: string; amount: number }>>([]);
   const [topPerformingHours, setTopPerformingHours] = useState<Array<{ time: string; calls: number; successRate: number }>>([]);
   const [performanceInsights, setPerformanceInsights] = useState({
@@ -23,6 +26,11 @@ export default function AnalyticsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const hourlyChartRef = useRef<HTMLCanvasElement>(null);
+  const spendChartRef = useRef<HTMLCanvasElement>(null);
+  const hourlyChartInstance = useRef<Chart | null>(null);
+  const spendChartInstance = useRef<Chart | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -36,8 +44,11 @@ export default function AnalyticsPage() {
         const data = await response.json();
         setKpiData(data.kpis);
         setHourlyDistribution(data.hourly);
-        setStatusBreakdown(data.status);
-        setGeographicDistribution(data.geographic ?? []);
+        setStatusBreakdown(data.status.map((s: any) => ({
+          label: s.status,
+          value: s.percentage,
+          color: s.status === 'COMPLETED' ? 'bg-green-500' : s.status === 'FAILED' ? 'bg-red-500' : 'bg-slate-400',
+        })));
         setDailySpendTrend(data.dailySpend);
         setTopPerformingHours(data.topHours);
         setPerformanceInsights(data.insights);
@@ -50,6 +61,139 @@ export default function AnalyticsPage() {
     fetchData();
   }, [timeRange]);
 
+  useEffect(() => {
+    if (hourlyChartInstance.current) {
+      hourlyChartInstance.current.destroy();
+    }
+
+    if (hourlyChartRef.current && hourlyDistribution.length > 0) {
+      const ctx = hourlyChartRef.current.getContext('2d');
+      if (ctx) {
+        hourlyChartInstance.current = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: hourlyDistribution.map((d) => d.hour),
+            datasets: [
+              {
+                label: 'Calls',
+                data: hourlyDistribution.map((d) => d.calls),
+                backgroundColor: '#5da28c',
+                borderRadius: 4,
+                hoverBackgroundColor: '#4a8572',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#1e293b',
+                padding: 12,
+                cornerRadius: 8,
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#f1f5f9' },
+                ticks: { font: { size: 11 } },
+              },
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 11 } },
+              },
+            },
+          },
+        });
+      }
+    }
+  }, [hourlyDistribution]);
+
+  useEffect(() => {
+    if (spendChartInstance.current) {
+      spendChartInstance.current.destroy();
+    }
+
+    if (spendChartRef.current && dailySpendTrend.length > 0) {
+      const ctx = spendChartRef.current.getContext('2d');
+      if (ctx) {
+        spendChartInstance.current = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: dailySpendTrend.map((d) => d.day),
+            datasets: [
+              {
+                label: 'Spend',
+                data: dailySpendTrend.map((d) => d.amount),
+                backgroundColor: '#5da28c',
+                borderRadius: 4,
+                hoverBackgroundColor: '#4a8572',
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => `₦${(context.parsed.y || 0).toFixed(2)}`,
+                },
+                backgroundColor: '#1e293b',
+                padding: 12,
+                cornerRadius: 8,
+              },
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                grid: { color: '#f1f5f9' },
+                ticks: {
+                  callback: (value) => `₦${value}`,
+                  font: { size: 11 },
+                },
+              },
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 11 } },
+              },
+            },
+          },
+        });
+      }
+    }
+  }, [dailySpendTrend]);
+
+  function handleExport() {
+    // Exporting Daily Spend Trend as the primary report data
+    const headers = ['Day', 'Spend Amount'];
+    const rows = dailySpendTrend.map(d => [
+      d.day,
+      d.amount.toFixed(2)
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `analytics_report_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  if (loading) {
+    return <LoadingAnimation />;
+  }
 
   return (
     <>
@@ -82,17 +226,19 @@ export default function AnalyticsPage() {
                 <option value="30d">Last 30 Days</option>
                 <option value="90d">Last 90 Days</option>
               </select>
-              <button className="flex items-center gap-2 bg-[#5da28c] hover:bg-[#4a8572] text-white text-sm font-bold py-2 px-4 rounded-lg transition-all">
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 bg-[#5da28c] hover:bg-[#4a8572] text-white text-sm font-bold py-2 px-4 rounded-lg transition-all"
+              >
                 <span className="material-symbols-outlined text-[18px]">download</span>
                 Export Report
               </button>
             </div>
           </div>
 
-          {loading && <div className="text-center py-8 text-slate-500">Loading analytics data...</div>}
           {error && <div className="text-center py-8 text-red-500">Error: {error}</div>}
 
-          {!loading && !error && (
+          {!error && (
             <>
               {/* KPI Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -155,27 +301,14 @@ export default function AnalyticsPage() {
                 {/* Hourly Distribution */}
                 <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
                   <h3 className="text-lg font-bold text-slate-900 mb-4">Call Distribution by Hour</h3>
-                  <div className="h-64 flex items-end justify-between gap-1">
-                    {/* Use hourlyDistribution data here */}
-                    {hourlyDistribution.map((data, i) => {
-                      // Example: height calculation based on actual calls
-                      // const maxCalls = Math.max(...hourlyDistribution.map(d => d.calls));
-                      // const height = maxCalls > 0 ? (data.calls / maxCalls) * 80 + 20 : 20; // Example: scale to 20-100%
-                      const height = data.calls === 0 ? 5 : (data.calls / 100) * 80 + 20; // Placeholder scaling
-                      return (
-                        <div key={data.hour} className="flex-1 flex flex-col items-center gap-1 group">
-                          <div 
-                            className="w-full bg-[#5da28c] rounded-t hover:bg-[#4a8572] transition-all cursor-pointer"
-                            style={{ height: `${height}%` }}
-                            title={`${data.hour} - ${data.calls} calls`}
-                          ></div>
-                          {i % 3 === 0 && ( // Display hour labels every 3 hours
-                            <span className="text-[10px] text-slate-400">{data.hour.replace('h', '')}h</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {hourlyDistribution.length === 0 && <p className="text-center text-slate-400 w-full">No hourly data available.</p>}
+                  <div className="h-64 w-full">
+                    {hourlyDistribution.length > 0 ? (
+                      <canvas ref={hourlyChartRef}></canvas>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-slate-400">
+                        No hourly data available.
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -203,57 +336,21 @@ export default function AnalyticsPage() {
                 </div>
               </div>
 
-              {/* Geographic Distribution */}
-              <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-                <h3 className="text-lg font-bold text-slate-900 mb-6">Geographic Distribution</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Use geographicDistribution data here */}
-                  {geographicDistribution.map((location) => (
-                    <div key={location.country} className="border border-slate-100 rounded-lg p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <span className="text-3xl">{location.flag}</span>
-                        <div className="flex-1">
-                          <div className="font-semibold text-slate-900">{location.country}</div>
-                          <div className="text-sm text-slate-500">{location.calls.toLocaleString()} calls</div>
-                        </div>
-                      </div>
-                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                        <div 
-                          className="h-full bg-[#5da28c] rounded-full"
-                          style={{ width: `${location.percentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="text-right text-xs text-slate-500 mt-1">{location.percentage}%</div>
-                    </div>
-                  ))}
-                  {geographicDistribution.length === 0 && <p className="text-center text-slate-400 w-full col-span-full">No geographic data available.</p>}
-                </div>
-              </div>
+
 
               {/* Cost Analysis */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Daily Spend Trend */}
                 <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
                   <h3 className="text-lg font-bold text-slate-900 mb-4">Daily Spend Trend</h3>
-                  <div className="h-48 flex items-end justify-between gap-2">
-                    {/* Use dailySpendTrend data here */}
-                    {dailySpendTrend.map((data) => {
-                      // Example: height calculation based on actual amount
-                      // const maxAmount = Math.max(...dailySpendTrend.map(d => d.amount));
-                      // const height = maxAmount > 0 ? (data.amount / maxAmount) * 70 + 30 : 30; // Example: scale to 30-100%
-                      const height = data.amount === 0 ? 10 : (data.amount / 100) * 70 + 30; // Placeholder scaling
-                      return (
-                        <div key={data.day} className="flex-1 flex flex-col items-center gap-2">
-                          <div className="text-xs font-semibold text-slate-700">₦{data.amount.toFixed(2)}</div>
-                          <div 
-                            className="w-full bg-gradient-to-t from-[#5da28c] to-[#5da28c]/50 rounded-t hover:from-[#4a8572] hover:to-[#4a8572]/50 transition-all cursor-pointer"
-                            style={{ height: `${height}%` }}
-                          ></div>
-                          <span className="text-xs text-slate-500">{data.day}</span>
-                        </div>
-                      );
-                    })}
-                    {dailySpendTrend.length === 0 && <p className="text-center text-slate-400 w-full">No daily spend data available.</p>}
+                  <div className="h-48 w-full">
+                    {dailySpendTrend.length > 0 ? (
+                      <canvas ref={spendChartRef}></canvas>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-slate-400">
+                        No daily spend data available.
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -316,5 +413,27 @@ export default function AnalyticsPage() {
         </div>
       </div>
     </>
+  );
+}
+
+function LoadingAnimation() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-4xl text-[#5da28c] animate-pulse">
+            phone_in_talk
+          </span>
+          <div className="flex gap-1">
+            <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+            <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+          <span className="material-symbols-outlined text-4xl text-[#5da28c] animate-pulse">
+            phone_forwarded
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

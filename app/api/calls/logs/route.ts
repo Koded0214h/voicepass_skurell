@@ -17,24 +17,27 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build filter
-    const where: Prisma.CallLogWhereInput = { userId: user.id };
+    const where: Prisma.vp_call_logWhereInput = { user_id: user.id };
     if (status) where.status = status;
 
     // Get logs
     const [logs, total] = await Promise.all([
-      db.callLog.findMany({
+      db.vp_call_log.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
         skip,
         take: limit,
       }),
-      db.callLog.count({ where }),
+      db.vp_call_log.count({ where }),
     ]);
+
+    const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
+    const IS_ENCRYPTION_CONFIGURED = ENCRYPTION_KEY && ENCRYPTION_KEY !== 'your-32-character-secret-key!!';
 
     // Decrypt phone numbers for display
     const decryptedLogs = logs.map(log => ({
       ...log,
-      phoneNumber: decrypt(log.phoneNumber),
+      phone_number: IS_ENCRYPTION_CONFIGURED ? decrypt(log.phone_number || '') : log.phone_number,
       otp: undefined, // Never expose OTP
     }));
 
@@ -42,7 +45,7 @@ export async function GET(req: NextRequest) {
     let filteredLogs = decryptedLogs;
     if (search) {
       filteredLogs = decryptedLogs.filter(log =>
-        log.phoneNumber.includes(search) || log.callId.includes(search)
+        log.phone_number.includes(search) || log.call_id.includes(search)
       );
     }
 

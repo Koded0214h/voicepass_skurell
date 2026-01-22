@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
     } = data;
 
     // Find call log
-    const callLog = await db.callLog.findUnique({
-      where: { callId: call_id },
+    const callLog = await db.vp_call_log.findUnique({
+      where: { call_id: call_id },
       include: { user: true },
     });
 
@@ -34,39 +34,38 @@ export async function POST(req: NextRequest) {
     }
 
     // Update call log
-    await db.callLog.update({
-      where: { callId: call_id },
+    await db.vp_call_log.update({
+      where: { call_id: call_id },
       data: {
         status,
-        startTime: start_time ? new Date(start_time) : null,
-        answerTime: answer_time ? new Date(answer_time) : null,
-        ringTime: ring_time,
-        callTime: call_time,
+        start_time: start_time ? new Date(start_time) : null,
+        answer_time: answer_time ? new Date(answer_time) : null,
+        ring_time: ring_time,
         duration: call_time,
         cost,
-        webhookSent: true,
+        webhook_sent: true,
       },
     });
 
     // Deduct balance if call was successful
     if (cost > 0) {
-      const balance = await db.creditBalance.findUnique({
-        where: { userId: callLog.userId },
+      const balance = await db.vp_credit_balance.findUnique({
+        where: { user_id: callLog.user_id },
       });
 
       const newBalance = (balance?.balance || 0) - cost;
 
-      await db.creditBalance.update({
-        where: { userId: callLog.userId },
+      await db.vp_credit_balance.update({
+        where: { user_id: callLog.user_id },
         data: { balance: newBalance },
       });
 
-      await db.transaction.create({
+      await db.vp_transaction.create({
         data: {
-          userId: callLog.userId,
+          user_id: callLog.user_id,
           type: 'DEBIT',
           amount: cost,
-          balanceAfter: newBalance,
+          balance_after: newBalance,
           description: `Voice OTP call - ${call_id}`,
           reference: call_id,
         },

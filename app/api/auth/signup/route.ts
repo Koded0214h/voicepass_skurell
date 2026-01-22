@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const { email, password, name } = await req.json();
 
     // Check if user exists
-    const existing = await db.user.findUnique({
+    const existing = await db.vp_user.findUnique({
       where: { email },
     });
 
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await hashPassword(password);
 
     // Create user
-    const user = await db.user.create({
+    const user = await db.vp_user.create({
       data: {
         email,
         password: hashedPassword,
@@ -33,27 +33,27 @@ export async function POST(req: NextRequest) {
     });
 
     // Create initial balance
-    await db.creditBalance.create({
+    await db.vp_credit_balance.create({
       data: {
-        userId: user.id,
+        user_id: user.id,
         balance: 0,
       },
     });
 
     // Create welcome transaction
-    await db.transaction.create({
+    await db.vp_transaction.create({
       data: {
-        userId: user.id,
+        user_id: user.id,
         type: 'CREDIT',
         amount: 100, // Welcome bonus
-        balanceAfter: 100,
+        balance_after: 100,
         description: 'Welcome bonus',
       },
     });
 
     // Update balance
-    await db.creditBalance.update({
-      where: { userId: user.id },
+    await db.vp_credit_balance.update({
+      where: { user_id: user.id },
       data: { balance: 100 },
     });
 

@@ -21,8 +21,8 @@ export function decrypt(text: string): string {
   try {
     const parts = text.split(':');
     if (parts.length !== 2) {
-      console.warn("Malformed encrypted text, expecting 'iv:encrypted', got:", text);
-      return '[MALFORMED_ENCRYPTED_DATA]';
+      // If text is not in iv:encrypted format, assume it is plain text
+      return text;
     }
     const iv = Buffer.from(parts[0], 'hex');
     const encryptedText = parts[1];
@@ -44,10 +44,7 @@ export function decrypt(text: string): string {
     return decrypted;
   } catch (error: any) {
     console.error('Decryption failed for text:', text, 'Error:', error.message);
-    if (error.code === 'ERR_CRYPTO_INVALID_IV') {
-      return '[DECRYPTION_FAILED_INVALID_IV]';
-    }
-    return '[DECRYPTION_FAILED_UNKNOWN_ERROR]';
+    return text; // Return original text if decryption fails
   }
 }
 export async function hashPassword(password: string): Promise<string> {

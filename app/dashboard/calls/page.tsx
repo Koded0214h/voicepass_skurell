@@ -5,12 +5,12 @@ import { format } from 'date-fns';
 
 interface CallLog {
   id: string;
-  phoneNumber: string;
+  phone_number: string;
   status: string;
   cost: number;
   duration: number | null;
-  createdAt: string;
-  callId: string;
+  created_at: string;
+  call_id: string;
 }
 
 export default function CallLogsPage() {
@@ -37,7 +37,7 @@ export default function CallLogsPage() {
         params.append('status', statusFilter);
       }
 
-      const res = await fetch(`/api/calls/logs?${params}`);
+      const res = await fetch(`/api/calls/logs?${params}`, { cache: 'no-store' });
       const data = await res.json();
 
       setCalls(data.logs || []);
@@ -50,11 +50,38 @@ export default function CallLogsPage() {
   }
 
   const filteredCalls = calls.filter(call =>
-    call.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    call.callId.toLowerCase().includes(searchTerm.toLowerCase())
+    call.phone_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    call.call_id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalPages = Math.ceil(total / 20);
+
+  function handleExport() {
+    const headers = ['Time', 'Call ID', 'Phone Number', 'Duration', 'Status', 'Cost'];
+    const rows = calls.map(call => [
+      format(new Date(call.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      call.call_id,
+      call.phone_number,
+      call.duration ? `00:${String(call.duration).padStart(2, '0')}` : '00:00',
+      call.status,
+      call.cost.toFixed(2)
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `call_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
   return (
     <div className="p-6 md:p-8">
@@ -65,7 +92,10 @@ export default function CallLogsPage() {
             <h1 className="text-2xl font-bold text-slate-900">Call Logs</h1>
             <p className="text-sm text-slate-500 mt-1">View and manage all voice OTP calls</p>
           </div>
-          <button className="flex items-center gap-2 bg-[#5da28c] hover:bg-[#4a8572] text-white text-sm font-bold py-2.5 px-4 rounded-lg transition-all">
+          <button 
+            onClick={handleExport}
+            className="flex items-center gap-2 bg-[#5da28c] hover:bg-[#4a8572] text-white text-sm font-bold py-2.5 px-4 rounded-lg transition-all"
+          >
             <span className="material-symbols-outlined text-[18px]">download</span>
             Export CSV
           </button>
@@ -192,13 +222,13 @@ export default function CallLogsPage() {
                         <input type="checkbox" className="rounded border-slate-300" />
                       </td>
                       <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                        {format(new Date(call.createdAt), 'MMM dd, HH:mm:ss')}
+                        {format(new Date(call.created_at), 'MMM dd, HH:mm:ss')}
                       </td>
                       <td className="px-6 py-4 font-mono text-xs text-slate-700">
-                        {call.callId.slice(0, 12)}...
+                        {call.call_id.slice(0, 12)}...
                       </td>
                       <td className="px-6 py-4 font-medium text-slate-900">
-                        {call.phoneNumber.slice(0, -4)}***{call.phoneNumber.slice(-4)}
+                        {call.phone_number.slice(0, -4)}***{call.phone_number.slice(-4)}
                       </td>
                       <td className="px-6 py-4 text-slate-600">
                         {call.duration ? `00:${String(call.duration).padStart(2, '0')}` : '-'}

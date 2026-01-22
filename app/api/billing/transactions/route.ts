@@ -14,20 +14,20 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build filter
-    const where: any = { userId: user.id };
+    const where: any = { user_id: user.id };
     if (type && type !== 'ALL') {
       where.type = type;
     }
 
     // Get transactions
     const [transactions, total] = await Promise.all([
-      db.transaction.findMany({
+      db.vp_transaction.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
         skip,
         take: limit,
       }),
-      db.transaction.count({ where }),
+      db.vp_transaction.count({ where }),
     ]);
 
     return NextResponse.json({

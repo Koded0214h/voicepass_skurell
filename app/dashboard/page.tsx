@@ -1,7 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
+import Link from 'next/link';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 interface DashboardStats {
   totalCalls: number;
@@ -13,33 +17,45 @@ interface DashboardStats {
 
 interface RecentCall {
   id: string;
-  phoneNumber: string;
+  phone_number: string;
   status: string;
   cost: number;
   duration: number | null;
-  createdAt: string;
-  callId: string;
+  created_at: string;
+  call_id: string;
 }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
   const [loading, setLoading] = useState(true);
+  const [volumeFilter, setVolumeFilter] = useState('Day');
+  
+  // Chart Data State
+  const [volumeTrend, setVolumeTrend] = useState<{ label: string, value: number }[]>([]);
+  const [deliveryPerformance, setDeliveryPerformance] = useState<{ day: string, success: number, failed: number }[]>([]);
+
+  const volumeChartRef = useRef<HTMLCanvasElement>(null);
+  const performanceChartRef = useRef<HTMLCanvasElement>(null);
+  const volumeChartInstance = useRef<Chart | null>(null);
+  const performanceChartInstance = useRef<Chart | null>(null);
 
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        const [logsRes, balanceRes] = await Promise.all([
-          fetch('/api/calls/logs?limit=5'),
-          fetch('/api/billing/balance'),
+        const [logsRes, balanceRes, analyticsRes] = await Promise.all([
+          fetch('/api/calls/logs?limit=5', { cache: 'no-store' }),
+          fetch('/api/billing/balance', { cache: 'no-store' }),
+          fetch(`/api/analytics?timeRange=${volumeFilter === 'Day' ? '24h' : volumeFilter === 'Week' ? '7d' : '30d'}`, { cache: 'no-store' }),
         ]);
 
-        if (!logsRes.ok || !balanceRes.ok) {
+        if (!logsRes.ok || !balanceRes.ok || !analyticsRes.ok) {
           throw new Error('Failed to fetch dashboard data');
         }
 
         const logsData = await logsRes.json();
         const balanceData = await balanceRes.json();
+        const analyticsData = await analyticsRes.json();
 
         const allLogs = logsData.logs || [];
         const successful = allLogs.filter((l: RecentCall) => 
@@ -56,6 +72,9 @@ export default function DashboardPage() {
         });
 
         setRecentCalls(allLogs.slice(0, 5));
+        setVolumeTrend(analyticsData.volumeTrend || []);
+        setDeliveryPerformance(analyticsData.dailyPerformance || []);
+        
         setLoading(false);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -63,7 +82,93 @@ export default function DashboardPage() {
       }
     }
     fetchDashboardData();
-  }, []);
+  }, [volumeFilter]);
+
+  // Initialize Volume Chart
+  useEffect(() => {
+    if (volumeChartInstance.current) {
+      volumeChartInstance.current.destroy();
+    }
+
+    if (volumeChartRef.current && volumeTrend.length > 0) {
+      const ctx = volumeChartRef.current.getContext('2d');
+      if (ctx) {
+        volumeChartInstance.current = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: volumeTrend.map(d => d.label),
+            datasets: [{
+              label: 'Calls',
+              data: volumeTrend.map(d => d.value),
+              borderColor: '#5da28c',
+              backgroundColor: (context) => {
+                const ctx = context.chart.ctx;
+                const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+                gradient.addColorStop(0, 'rgba(93, 162, 140, 0.2)');
+                gradient.addColorStop(1, 'rgba(93, 162, 140, 0)');
+                return gradient;
+              },
+              fill: true,
+              tension: 0.4,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { maxTicksLimit: 6, font: { size: 10 } } },
+              y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 } } }
+            }
+          }
+        });
+      }
+    }
+  }, [volumeTrend]);
+
+  // Initialize Performance Chart
+  useEffect(() => {
+    if (performanceChartInstance.current) {
+      performanceChartInstance.current.destroy();
+    }
+
+    if (performanceChartRef.current && deliveryPerformance.length > 0) {
+      const ctx = performanceChartRef.current.getContext('2d');
+      if (ctx) {
+        performanceChartInstance.current = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: deliveryPerformance.map(d => d.day),
+            datasets: [
+              {
+                label: 'Success',
+                data: deliveryPerformance.map(d => d.success),
+                backgroundColor: '#5da28c',
+                borderRadius: 4,
+              },
+              {
+                label: 'Failed',
+                data: deliveryPerformance.map(d => d.failed),
+                backgroundColor: '#e2e8f0',
+                borderRadius: 4,
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+              y: { beginAtZero: true, grid: { display: false }, display: false }
+            }
+          }
+        });
+      }
+    }
+  }, [deliveryPerformance]);
 
   if (loading) {
     return <LoadingAnimation />;
@@ -195,42 +300,30 @@ export default function DashboardPage() {
                   <p className="text-sm text-slate-500">Voice & OTP delivery over time</p>
                 </div>
                 <div className="flex bg-slate-100 p-1 rounded-lg">
-                  <button className="px-3 py-1 text-xs font-semibold rounded-md bg-white shadow-sm text-slate-800">
-                    Day
-                  </button>
-                  <button className="px-3 py-1 text-xs font-medium rounded-md text-slate-500">
-                    Week
-                  </button>
-                  <button className="px-3 py-1 text-xs font-medium rounded-md text-slate-500">
-                    Month
-                  </button>
+                  {['Day', 'Week', 'Month'].map((filter) => (
+                    <button
+                      key={filter}
+                      onClick={() => setVolumeFilter(filter)}
+                      className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                        volumeFilter === filter
+                          ? 'bg-white shadow-sm text-slate-800 font-semibold'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  ))}
                 </div>
               </div>
               
-              <div className="h-64 w-full relative">
-                <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 400 150">
-                  <line stroke="#f1f5f9" strokeWidth="1" x1="0" x2="400" y1="150" y2="150" />
-                  <line stroke="#f1f5f9" strokeWidth="1" x1="0" x2="400" y1="100" y2="100" />
-                  <line stroke="#f1f5f9" strokeWidth="1" x1="0" x2="400" y1="50" y2="50" />
-                  <line stroke="#f1f5f9" strokeWidth="1" x1="0" x2="400" y1="0" y2="0" />
-                  
-                  <path className="bar-animate" d="M0,120 Q40,100 80,110 T160,80 T240,60 T320,90 T400,40 V150 H0 Z" fill="url(#gradient)" opacity="0.2" />
-                  <path className="line-animate" d="M0,120 Q40,100 80,110 T160,80 T240,60 T320,90 T400,40" fill="none" stroke="#5da28c" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
-                  
-                  <defs>
-                    <linearGradient id="gradient" x1="0%" x2="0%" y1="0%" y2="100%">
-                      <stop offset="0%" style={{stopColor: '#5da28c', stopOpacity: 1}} />
-                      <stop offset="100%" style={{stopColor: '#ffffff', stopOpacity: 0}} />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                <div className="flex justify-between text-xs text-slate-400 mt-2">
-                  <span>00:00</span>
-                  <span>06:00</span>
-                  <span>12:00</span>
-                  <span>18:00</span>
-                  <span>23:59</span>
-                </div>
+              <div className="h-64 w-full">
+                {volumeTrend.length > 0 ? (
+                  <canvas ref={volumeChartRef}></canvas>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-slate-400">
+                    No data available for this period
+                  </div>
+                )}
               </div>
             </div>
 
@@ -253,28 +346,14 @@ export default function DashboardPage() {
                 </div>
               </div>
               
-              <div className="h-64 flex items-end justify-between gap-2 px-2">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
-                  const heights = [40, 65, 55, 85, 60, 30, 25];
-                  const failHeights = [10, 5, 8, 4, 12, 3, 2];
-                  return (
-                    <div key={day} className="flex flex-col items-center gap-2 flex-1 group cursor-pointer">
-                      <div className="w-full flex flex-col justify-end gap-1 h-full">
-                        <div 
-                          className="w-full bg-slate-200 rounded-sm opacity-80 bar-animate" 
-                          style={{ height: `${failHeights[i]}%`, animationDelay: `${i * 0.1}s` }}
-                        ></div>
-                        <div 
-                          className="w-full bg-[#5da28c] rounded-sm bar-animate group-hover:bg-[#4a8572] transition-colors" 
-                          style={{ height: `${heights[i]}%`, animationDelay: `${i * 0.1}s` }}
-                        ></div>
-                      </div>
-                      <span className={`text-xs ${i === 3 ? 'font-bold text-[#5da28c]' : 'text-slate-400'}`}>
-                        {day}
-                      </span>
-                    </div>
-                  );
-                })}
+              <div className="h-64 w-full">
+                {deliveryPerformance.length > 0 ? (
+                  <canvas ref={performanceChartRef}></canvas>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-slate-400">
+                    No performance data available
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -283,9 +362,9 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
-              <button className="text-sm text-[#5da28c] font-semibold hover:text-[#4a8572] transition-colors">
+              <Link href="/dashboard/calls" className="text-sm text-[#5da28c] font-semibold hover:text-[#4a8572] transition-colors">
                 View All Logs
-              </button>
+              </Link>
             </div>
             
             <div className="overflow-x-auto">
@@ -311,10 +390,10 @@ export default function DashboardPage() {
                     recentCalls.map((call) => (
                       <tr key={call.id} className="group hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                          {format(new Date(call.createdAt), 'MMM dd, HH:mm:ss')}
+                          {format(new Date(call.created_at), 'MMM dd, HH:mm:ss')}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900">
-                          {call.phoneNumber.slice(0, -4)}***{call.phoneNumber.slice(-4)}
+                          {call.phone_number.slice(0, -4)}***{call.phone_number.slice(-4)}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">

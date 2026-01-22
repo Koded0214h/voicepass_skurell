@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
     const { phoneNumber } = await req.json();
 
     // Check balance
-    const balance = await db.creditBalance.findUnique({
-      where: { userId: user.id },
+    const balance = await db.vp_credit_balance.findUnique({
+      where: { user_id: user.id },
     });
 
     if (!balance || balance.balance < 3.5) {
@@ -35,11 +35,11 @@ export async function POST(req: NextRequest) {
     const callId = response.data.call_id || `call_${Date.now()}`;
 
     // Create call log
-    await db.callLog.create({
+    await db.vp_call_log.create({
       data: {
-        userId: user.id,
-        callId,
-        phoneNumber: encrypt(phoneNumber),
+        user_id: user.id,
+        call_id: callId,
+        phone_number: encrypt(phoneNumber),
         otp: encrypt(otp),
         status: 'INITIATED',
         cost: 0, // Will be updated on webhook

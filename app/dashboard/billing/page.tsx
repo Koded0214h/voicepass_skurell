@@ -7,9 +7,9 @@ interface Transaction {
   id: string;
   type: string;
   amount: number;
-  balanceAfter: number;
+  balance_after: number;
   description: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export default function BillingPage() {
@@ -17,6 +17,7 @@ export default function BillingPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState('');
 
   useEffect(() => {
     fetchBillingData();
@@ -24,20 +25,50 @@ export default function BillingPage() {
 
   async function fetchBillingData() {
     try {
-      const balanceRes = await fetch('/api/billing/balance');
+      const balanceRes = await fetch('/api/billing/balance', { cache: 'no-store' });
       const balanceData = await balanceRes.json();
       setBalance(balanceData.balance || 0);
 
-      // Fetch transactions (you'll need to create this API route)
-      // const transactionsRes = await fetch('/api/billing/transactions');
-      // const transactionsData = await transactionsRes.json();
-      // setTransactions(transactionsData.transactions || []);
+      const transactionsRes = await fetch('/api/billing/transactions', { cache: 'no-store' });
+      const transactionsData = await transactionsRes.json();
+      setTransactions(transactionsData.transactions || []);
 
       setLoading(false);
     } catch (error) {
       console.error('Error fetching billing data:', error);
       setLoading(false);
     }
+  }
+
+  if (loading) {
+    return <LoadingAnimation />;
+  }
+
+  function handleExport() {
+    const headers = ['Date', 'Description', 'Type', 'Amount', 'Balance After', 'Reference'];
+    const rows = transactions.map(t => [
+      format(new Date(t.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      t.description,
+      t.type,
+      t.amount.toFixed(2),
+      t.balance_after.toFixed(2),
+      t.id
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transactions_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   return (
@@ -66,7 +97,10 @@ export default function BillingPage() {
                 <p className="text-slate-500 text-sm font-medium">Current Balance</p>
                 <h3 className="text-3xl font-bold text-slate-900 mt-1">₦{balance.toFixed(2)}</h3>
                 <button
-                  onClick={() => setShowTopUpModal(true)}
+              onClick={() => {
+                setSelectedAmount('');
+                setShowTopUpModal(true);
+              }}
                   className="w-full mt-4 flex items-center justify-center gap-2 bg-[#5da28c] hover:bg-[#4a8572] text-white text-sm font-bold py-2.5 px-4 rounded-lg transition-all"
                 >
                   <span className="material-symbols-outlined text-[18px]">add</span>
@@ -118,7 +152,10 @@ export default function BillingPage() {
               ].map((pkg) => (
                 <button
                   key={pkg.amount}
-                  onClick={() => setShowTopUpModal(true)}
+              onClick={() => {
+                setSelectedAmount(pkg.amount.toString());
+                setShowTopUpModal(true);
+              }}
                   className={`p-4 rounded-lg border-2 transition-all text-left relative ${
                     pkg.popular
                       ? 'border-[#5da28c] bg-[#5da28c]/5'
@@ -154,7 +191,10 @@ export default function BillingPage() {
                   <option>Credits</option>
                   <option>Debits</option>
                 </select>
-                <button className="flex items-center gap-1 px-3 py-1.5 text-sm text-[#5da28c] hover:text-[#4a8572] font-semibold">
+                <button 
+                  onClick={handleExport}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-[#5da28c] hover:text-[#4a8572] font-semibold"
+                >
                   <span className="material-symbols-outlined text-[18px]">download</span>
                   Export
                 </button>
@@ -188,7 +228,7 @@ export default function BillingPage() {
                     transactions.map((txn) => (
                       <tr key={txn.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                          {format(new Date(txn.createdAt), 'MMM dd, yyyy HH:mm')}
+                          {format(new Date(txn.created_at), 'MMM dd, yyyy HH:mm')}
                         </td>
                         <td className="px-6 py-4 text-slate-900">{txn.description}</td>
                         <td className="px-6 py-4">
@@ -209,7 +249,7 @@ export default function BillingPage() {
                           {txn.type === 'CREDIT' ? '+' : '-'}₦{txn.amount.toFixed(2)}
                         </td>
                         <td className="px-6 py-4 text-right font-mono text-slate-900">
-                          ₦{txn.balanceAfter.toFixed(2)}
+                          ₦{txn.balance_after.toFixed(2)}
                         </td>
                         <td className="px-6 py-4 font-mono text-xs text-slate-500">
                           {txn.id.slice(0, 8)}
@@ -226,14 +266,18 @@ export default function BillingPage() {
 
       {/* Top Up Modal */}
       {showTopUpModal && (
-        <TopUpModal onClose={() => setShowTopUpModal(false)} onSuccess={fetchBillingData} />
+        <TopUpModal
+          onClose={() => setShowTopUpModal(false)}
+          onSuccess={fetchBillingData}
+          initialAmount={selectedAmount}
+        />
       )}
     </>
   );
 }
 
-function TopUpModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [amount, setAmount] = useState('');
+function TopUpModal({ onClose, onSuccess, initialAmount }: { onClose: () => void; onSuccess: () => void; initialAmount?: string }) {
+  const [amount, setAmount] = useState(initialAmount || '');
   const [loading, setLoading] = useState(false);
 
   async function handleTopUp(e: React.FormEvent) {
@@ -329,6 +373,28 @@ function TopUpModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: ()
         <p className="text-xs text-slate-500 text-center mt-4">
           Secure payment powered by Paystack
         </p>
+      </div>
+    </div>
+  );
+}
+
+function LoadingAnimation() {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-4xl text-[#5da28c] animate-pulse">
+            phone_in_talk
+          </span>
+          <div className="flex gap-1">
+            <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+            <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+            <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+          </div>
+          <span className="material-symbols-outlined text-4xl text-[#5da28c] animate-pulse">
+            phone_forwarded
+          </span>
+        </div>
       </div>
     </div>
   );

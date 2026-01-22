@@ -7,66 +7,68 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model vp_user {
   id             String   @id @default(cuid())
   email          String   @unique
   password       String
   name           String
+  company        String?
+  phone          String?
   role           String   @default("client")
-  createdAt      DateTime @default(now())
+  created_at     DateTime @default(now())
   balance        Float    @default(0)
-  lastBalUpdated DateTime @updatedAt
+  last_bal_updated DateTime @updatedAt
 
-  callLogs     CallLog[]
-  transactions Transaction[]
-  creditBalance CreditBalance?
+  call_logs      vp_call_log[]
+  transactions   vp_transaction[]
+  credit_balance vp_credit_balance?
 }
 
-model CallLog {
+model vp_call_log {
   id          String    @id @default(cuid())
-  userId      String
-  callId      String    @unique
+  user_id     String
+  call_id     String    @unique
   gender      String?
   cost        Float?    @default(3.5)
   language    String?
-  phoneNumber String?
+  phone_number String?
   otp         String?
   status      String?
   duration    Int?      @default(0)
-  createdAt   DateTime  @default(now())
-  startTime   DateTime?
-  answerTime  DateTime?
-  callbackUrl String?   @default("")
-  ringTime    Int?      @default(0)
-  endAt       DateTime?
-  webhookSent Boolean?  @default(false)
+  created_at  DateTime  @default(now())
+  start_time  DateTime?
+  answer_time DateTime?
+  callback_url String?   @default("")
+  ring_time   Int?      @default(0)
+  end_at      DateTime?
+  webhook_sent Boolean?  @default(false)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user vp_user @relation(fields: [user_id], references: [id], onDelete: Cascade)
   
-  @@index([userId])
+  @@index([user_id])
   @@index([status])
 }
 
-model Transaction {
+model vp_transaction {
   id           String   @id @default(cuid())
-  userId       String
+  user_id      String
   type         String
   amount       Float
-  balanceAfter Float
+  balance_after Float
   description  String
   reference    String?
-  createdAt    DateTime @default(now())
+  created_at   DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user vp_user @relation(fields: [user_id], references: [id], onDelete: Cascade)
   
-  @@index([userId])
-  @@index([createdAt])
+  @@index([user_id])
+  @@index([created_at])
 }
 
-model CreditBalance {
-  userId      String   @id
+model vp_credit_balance {
+  user_id     String   @id
   balance     Float    @default(0)
-  lastUpdated DateTime @updatedAt
+  last_updated DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user vp_user @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }

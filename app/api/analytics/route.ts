@@ -1,161 +1,193 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
-import { startOfDay, endOfDay, subDays, format, getDay, getHours } from 'date-fns';
+import { getCurrentUser } from '@/lib/auth';
+import { subDays, format } from 'date-fns';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const user = await requireAuth();
+    const user = await getCurrentUser();
+    // Fallback to the specific user ID if not logged in (for testing purposes as requested)
+    const userId = user?.id || 'cmkng3gbr0003122pr9yiizlq';
+
     const { searchParams } = new URL(req.url);
     const timeRange = searchParams.get('timeRange') || '7d';
+    
+    const now = new Date();
+    let startDate = subDays(now, 7);
+    if (timeRange === '24h') startDate = subDays(now, 1);
+    if (timeRange === '30d') startDate = subDays(now, 30);
+    if (timeRange === '90d') startDate = subDays(now, 90);
 
-    let startDate: Date;
-    switch (timeRange) {
-      case '24h':
-        startDate = subDays(new Date(), 1);
-        break;
-      case '7d':
-        startDate = subDays(new Date(), 7);
-        break;
-      case '30d':
-        startDate = subDays(new Date(), 30);
-        break;
-      case '90d':
-        startDate = subDays(new Date(), 90);
-        break;
-      default:
-        startDate = subDays(new Date(), 7); // Default to 7 days
-    }
-
-    // Fetch all relevant call logs for the user within the time range
-    const callLogs = await db.callLog.findMany({
+    const callLogs = await db.vp_call_log.findMany({
       where: {
-        userId: user.id,
-        createdAt: {
+        user_id: userId,
+        created_at: {
           gte: startDate,
         },
       },
+      orderBy: {
+        created_at: 'desc',
+      },
     });
 
-    // Initialize metrics
-    let totalCalls = callLogs.length;
-    let successfulCalls = 0;
-    let failedCalls = 0;
-    let totalResponseTime = 0;
-    const hourlyCallCounts: { [key: string]: number } = {};
-    const callStatusCounts: { [key: string]: number } = {
-      COMPLETED: 0,
-      ANSWERED: 0,
-      FAILED: 0,
-      'NO ANSWER': 0,
-    };
-    const dailySpend: { [key: string]: number } = {};
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-    for (let i = 0; i < 24; i++) {
-      hourlyCallCounts[`${i}h`] = 0;
-    }
-    for (const dayName of dayNames) {
-      dailySpend[dayName] = 0;
-    }
-
-    callLogs.forEach(log => {
-      // Status counts
-      const status = log.status as keyof typeof callStatusCounts;
-      if (callStatusCounts[status] !== undefined) {
-        callStatusCounts[status]++;
-      } else {
-        // Handle unexpected statuses gracefully
-        console.warn(`Unexpected call status: ${log.status}`);
-      }
-
-      // Response time (assuming duration can act as response time for simplicity, or add a dedicated field)
-      if (log.duration) {
-        totalResponseTime += log.duration;
-      }
-
-      // Hourly distribution
-      const hour = getHours(log.createdAt);
-      hourlyCallCounts[`${hour}h`]++;
-
-      // Daily spend
-      const dayOfWeek = getDay(log.createdAt); // 0 for Sunday, 1 for Monday, etc.
-      const dayName = dayNames[dayOfWeek];
-      dailySpend[dayName] += log.cost ?? 0; // Convert Decimal to number for summation
-    });
-
-    successfulCalls = callStatusCounts.COMPLETED + callStatusCounts.ANSWERED;
-    failedCalls = callStatusCounts.FAILED + callStatusCounts['NO ANSWER'];
-
+    const totalCalls = callLogs.length;
+    const successfulCalls = callLogs.filter(log => log.status === 'COMPLETED' || log.status === 'ANSWERED').length;
     const successRate = totalCalls > 0 ? (successfulCalls / totalCalls) * 100 : 0;
-    const avgResponseTime = totalCalls > 0 ? totalResponseTime / totalCalls : 0; // In seconds
     
-    // Peak Hour (simple max count for now)
-    let peakHour = 'N/A';
-    let maxCallsInHour = -1;
-    for (const hour in hourlyCallCounts) {
-      if (hourlyCallCounts[hour] > maxCallsInHour) {
-        maxCallsInHour = hourlyCallCounts[hour];
-        peakHour = hour;
+    const totalDuration = callLogs.reduce((acc, log) => acc + (log.duration || 0), 0);
+    const avgResponseTime = totalCalls > 0 ? totalDuration / totalCalls : 0;
+
+    // Peak Hour
+    const hourCounts: Record<number, number> = {};
+    callLogs.forEach(log => {
+      const hour = new Date(log.created_at).getHours();
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    });
+    let peakHour = 0;
+    let maxCalls = 0;
+    Object.entries(hourCounts).forEach(([hour, count]) => {
+      if (count > maxCalls) {
+        maxCalls = count;
+        peakHour = parseInt(hour);
       }
-    }
+    });
 
-    // Cost Efficiency (Cost per successful call)
-    const costEfficiency = successfulCalls > 0 ? (callLogs.reduce((sum, log) => sum + (log.cost ?? 0), 0) / successfulCalls) : 0;
+    // Cost Efficiency
+    const totalCost = callLogs.reduce((acc, log) => acc + (log.cost || 0), 0);
+    const costPerSuccess = successfulCalls > 0 ? totalCost / successfulCalls : 0;
 
-    // Daily Spend Trend for the chart (ordered correctly)
-    const currentDay = getDay(new Date());
-    const orderedDailySpend = [];
-    for (let i = 0; i < 7; i++) {
-        const dayIndex = (currentDay - (6 - i) + 7) % 7; // Get days from 6 days ago to today
-        orderedDailySpend.push({
-            day: dayNames[dayIndex],
-            amount: dailySpend[dayNames[dayIndex]] || 0
-        });
-    }
+    // Call Distribution
+    const callDistribution = Array.from({ length: 24 }).map((_, i) => ({
+      hour: `${i}h`,
+      calls: hourCounts[i] || 0,
+    }));
 
+    // Status Breakdown
+    const statusCounts: Record<string, number> = {};
+    callLogs.forEach(log => {
+      statusCounts[log.status] = (statusCounts[log.status] || 0) + 1;
+    });
+    const callStatusBreakdown = Object.entries(statusCounts).map(([status, count]) => ({
+      status,
+      percentage: totalCalls > 0 ? Math.round((count / totalCalls) * 100) : 0,
+    }));
 
-    // Top Performing Hours (example logic, can be refined)
-    const topPerformingHours = Object.entries(hourlyCallCounts)
-      .map(([hour, calls]) => ({
-        time: hour,
-        calls,
-        successRate: totalCalls > 0 ? (callStatusCounts.COMPLETED + callStatusCounts.ANSWERED) / totalCalls * 100 : 0 // Simplified for now
-      }))
-      .sort((a, b) => b.calls - a.calls)
-      .slice(0, 3); // Get top 3
+    // Daily Spend Trend
+    const dailySpend: Record<string, number> = {};
+    callLogs.forEach(log => {
+      const day = format(new Date(log.created_at), 'EEE');
+      dailySpend[day] = (dailySpend[day] || 0) + (log.cost || 0);
+    });
+    const dailySpendTrend = Object.entries(dailySpend).map(([day, amount]) => ({
+      day,
+      amount,
+    }));
 
-    // Performance Insights (placeholders for now, actual calculations are more complex)
-    const performanceInsights = {
-      bestDay: 'N/A', // Requires more complex daily aggregation
-      avgDailyCalls: 'N/A', // Requires more complex daily aggregation
-      costSavings: 'N/A', // Requires comparison with other services/periods
-    };
+    // Top Performing Hours
+    const hourStats: Record<number, { total: number, success: number }> = {};
+    callLogs.forEach(log => {
+      const hour = new Date(log.created_at).getHours();
+      if (!hourStats[hour]) hourStats[hour] = { total: 0, success: 0 };
+      hourStats[hour].total++;
+      if (log.status === 'COMPLETED' || log.status === 'ANSWERED') {
+        hourStats[hour].success++;
+      }
+    });
     
+    const topPerformingHours = Object.entries(hourStats)
+      .map(([hour, stats]) => ({
+        hour: `${hour}h`,
+        calls: stats.total,
+        successRate: (stats.success / stats.total) * 100,
+      }))
+      .sort((a, b) => b.successRate - a.successRate)
+      .slice(0, 3);
+
+    // Performance Insights
+    const dayStats: Record<string, { total: number; success: number }> = {};
+    callLogs.forEach(log => {
+      const day = format(log.created_at, 'EEE');
+      if (!dayStats[day]) dayStats[day] = { total: 0, success: 0 };
+      dayStats[day].total++;
+      // @ts-ignore
+      if (log.status === 'COMPLETED' || log.status === 'ANSWERED') {
+        dayStats[day].success++;
+      }
+    });
+
+    let bestDay = 'N/A';
+    let maxSuccessRate = -1;
+    Object.entries(dayStats).forEach(([day, stats]) => {
+      const rate = stats.total > 0 ? (stats.success / stats.total) * 100 : 0;
+      if (rate > maxSuccessRate && stats.total > 0) {
+        maxSuccessRate = rate;
+        bestDay = day;
+      }
+    });
+
+    const daysMap: Record<string, number> = { '24h': 1, '7d': 7, '30d': 30, '90d': 90 };
+    const days = daysMap[timeRange] || 7;
+    const avgDailyCalls = (totalCalls / days).toFixed(1);
+
+    const smsRate = 5.0;
+    const equivalentSmsCost = successfulCalls * smsRate;
+    const savings = Math.max(0, equivalentSmsCost - totalCost);
+    const costSavings = '₦' + savings.toFixed(2);
+
+    // Volume Trend (Dynamic based on timeRange)
+    let volumeTrend = [];
+    if (timeRange === '24h') {
+        const hourMap = new Map();
+        for(let i=0; i<24; i++) hourMap.set(i, 0);
+        callLogs.forEach(log => {
+            const hour = new Date(log.created_at).getHours();
+            hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
+        });
+        volumeTrend = Array.from(hourMap.entries()).map(([label, value]) => ({ label: `${label}:00`, value }));
+    } else {
+        const dailyCounts: Record<string, number> = {};
+        // Process in reverse (chronological) order for the graph
+        [...callLogs].reverse().forEach(log => {
+             const day = format(new Date(log.created_at), 'MMM dd');
+             dailyCounts[day] = (dailyCounts[day] || 0) + 1;
+        });
+        volumeTrend = Object.entries(dailyCounts).map(([label, value]) => ({ label, value }));
+    }
+
+    // Daily Performance (Success vs Failed)
+    const dailyPerfMap: Record<string, { success: number, failed: number }> = {};
+    // Process in reverse (chronological) order
+    [...callLogs].reverse().forEach(log => {
+        const day = format(new Date(log.created_at), 'EEE');
+        if (!dailyPerfMap[day]) dailyPerfMap[day] = { success: 0, failed: 0 };
+        if (log.status === 'COMPLETED' || log.status === 'ANSWERED') dailyPerfMap[day].success++;
+        else if (log.status === 'FAILED') dailyPerfMap[day].failed++;
+    });
+    const dailyPerformance = Object.entries(dailyPerfMap).map(([day, stats]) => ({ day, ...stats }));
+
     return NextResponse.json({
       kpis: {
+        totalCalls,
         successRate: successRate.toFixed(1) + '%',
-        avgResponseTime: avgResponseTime.toFixed(1) + 's',
-        peakHour: peakHour,
-        costEfficiency: '₦' + costEfficiency.toFixed(2),
+        avgResponseTime: avgResponseTime.toFixed(2) + 's',
+        peakHour: `${peakHour}:00`,
+        costEfficiency: '₦' + costPerSuccess.toFixed(2),
       },
-      hourly: Object.entries(hourlyCallCounts).map(([hour, calls]) => ({ hour, calls })),
-      status: [
-        { label: 'Completed', value: callStatusCounts.COMPLETED, color: 'bg-[#5da28c]' },
-        { label: 'Answered', value: callStatusCounts.ANSWERED, color: 'bg-blue-500' },
-        { label: 'Failed', value: callStatusCounts.FAILED, color: 'bg-red-500' },
-        { label: 'No Answer', value: callStatusCounts['NO ANSWER'], color: 'bg-yellow-500' },
-      ],
-      geographic: [], // Placeholder, requires country data in logs
-      dailySpend: orderedDailySpend,
+      hourly: callDistribution,
+      status: callStatusBreakdown,
+      dailySpend: dailySpendTrend,
       topHours: topPerformingHours,
-      insights: performanceInsights,
+      insights: {
+        bestDay,
+        avgDailyCalls,
+        costSavings,
+      },
+      volumeTrend,
+      dailyPerformance
     });
-  } catch (error) {
-    console.error('Fetch analytics error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch analytics' },
-      { status: 500 }
-    );
+
+  } catch (error: any) {
+    console.error('Analytics error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

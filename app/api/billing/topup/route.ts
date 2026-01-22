@@ -15,18 +15,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Get current balance
-    const balance = await db.creditBalance.findUnique({
-      where: { userId: user.id },
+    const balance = await db.vp_credit_balance.findUnique({
+      where: { user_id: user.id },
     });
 
     const currentBalance = balance?.balance || 0;
     const newBalance = currentBalance + amount;
 
     // Update balance
-    await db.creditBalance.upsert({
-      where: { userId: user.id },
+    await db.vp_credit_balance.upsert({
+      where: { user_id: user.id },
       create: {
-        userId: user.id,
+        user_id: user.id,
         balance: newBalance,
       },
       update: {
@@ -35,12 +35,12 @@ export async function POST(req: NextRequest) {
     });
 
     // Create transaction record
-    await db.transaction.create({
+    await db.vp_transaction.create({
       data: {
-        userId: user.id,
+        user_id: user.id,
         type: 'CREDIT',
         amount,
-        balanceAfter: newBalance,
+        balance_after: newBalance,
         description: `Credit top-up`,
         reference: `TOP_${Date.now()}`,
       },
