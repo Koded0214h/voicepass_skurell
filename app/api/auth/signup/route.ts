@@ -32,28 +32,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create initial balance
-    await db.vp_credit_balance.create({
-      data: {
-        user_id: user.id,
-        balance: 0,
-      },
-    });
-
     // Create welcome transaction
-    await db.vp_transaction.create({
+    await db.vp_transactions.create({
       data: {
-        user_id: user.id,
+        vp_user: {
+          connect: { id: user.id },
+        },
         type: 'CREDIT',
         amount: 100, // Welcome bonus
-        balance_after: 100,
         description: 'Welcome bonus',
       },
     });
 
     // Update balance
-    await db.vp_credit_balance.update({
-      where: { user_id: user.id },
+    await db.vp_user.update({
+      where: { id: user.id },
       data: { balance: 100 },
     });
 
@@ -88,3 +81,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Chart, registerables } from 'chart.js';
-import { Phone, TrendingUp, Wallet, Plus, CheckCircle, AlertCircle, AlertTriangle, PhoneCall, PhoneForwarded, Key } from 'lucide-react';
+import { Phone, TrendingUp, Wallet, Plus, CheckCircle, AlertCircle, AlertTriangle, PhoneCall, PhoneForwarded, Key, Eye, X } from 'lucide-react';
 
 Chart.register(...registerables);
 
@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [volumeFilter, setVolumeFilter] = useState('Day');
+  const [selectedCall, setSelectedCall] = useState<RecentCall | null>(null);
   
   // Chart Data State
   const [volumeTrend, setVolumeTrend] = useState<{ label: string, value: number }[]>([]);
@@ -214,7 +215,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div>
-                <p className="text-slate-500 text-sm font-medium">Total Calls</p>
+                <p className="text-slate-500 text-sm font-medium">Total Voice Pass</p>
                 <h3 className="text-3xl font-bold text-slate-900 mt-1">
                   {stats?.totalCalls.toLocaleString() || '0'}
                 </h3>
@@ -378,6 +379,7 @@ export default function DashboardPage() {
                     <th className="px-6 py-4">Duration</th>
                     <th className="px-6 py-4">Status</th>
                     <th className="px-6 py-4 text-right">Cost</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -422,6 +424,14 @@ export default function DashboardPage() {
                         <td className="px-6 py-4 text-right font-mono text-slate-900">
                           ₦{call.cost.toFixed(3)}
                         </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => setSelectedCall(call)}
+                            className="p-2 text-slate-400 hover:text-[#5da28c] hover:bg-[#5da28c]/10 rounded-full transition-colors"
+                          >
+                            <Eye className="size-5" />
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -430,6 +440,10 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {selectedCall && (
+          <CallDetailsModal call={selectedCall} onClose={() => setSelectedCall(null)} />
+        )}
       </div>
     </>
   );
@@ -447,6 +461,77 @@ function LoadingAnimation() {
             <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
           </div>
           <PhoneForwarded className="size-9 text-[#5da28c] animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CallDetailsModal({ call, onClose }: { call: RecentCall; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-xl p-6 max-w-lg w-full shadow-2xl relative animate-in zoom-in-95 duration-200">
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+        >
+          <X className="size-5" />
+        </button>
+        
+        <div className="flex items-center gap-3 mb-6">
+          <div className="bg-[#eef6f4] p-3 rounded-full text-[#5da28c]">
+            <PhoneCall className="size-6" />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-900">Call Details</h3>
+            <p className="text-sm text-slate-500">ID: {call.call_id}</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-slate-50 rounded-lg">
+              <p className="text-xs font-medium text-slate-500 mb-1">Recipient</p>
+              <p className="text-sm font-bold text-slate-900">{call.phone_number}</p>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-lg">
+              <p className="text-xs font-medium text-slate-500 mb-1">Date & Time</p>
+              <p className="text-sm font-bold text-slate-900">{format(new Date(call.created_at), 'MMM dd, yyyy HH:mm')}</p>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-lg">
+              <p className="text-xs font-medium text-slate-500 mb-1">Duration</p>
+              <p className="text-sm font-bold text-slate-900">{call.duration ? `${call.duration}s` : '-'}</p>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-lg">
+              <p className="text-xs font-medium text-slate-500 mb-1">Cost</p>
+              <p className="text-sm font-bold text-slate-900">₦{call.cost.toFixed(3)}</p>
+            </div>
+          </div>
+
+          <div className="p-4 bg-slate-50 rounded-lg flex items-center justify-between">
+            <p className="text-xs font-medium text-slate-500">Status</p>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+              call.status === 'ANSWERED' || call.status === 'COMPLETED'
+                ? 'bg-[#5da28c]/10 text-[#4a8572] border border-[#5da28c]/20'
+                : 'bg-red-50 text-red-600 border border-red-100'
+            }`}>
+              <span className={`size-1.5 rounded-full ${
+                call.status === 'ANSWERED' || call.status === 'COMPLETED' 
+                  ? 'bg-[#5da28c]' 
+                  : 'bg-red-500'
+              }`}></span>
+              {call.status}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
