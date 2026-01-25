@@ -1,60 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const user = await requireAuth();
-    const { amount } = await req.json();
-
-    if (!amount || amount < 100) {
-      return NextResponse.json(
-        { error: 'Minimum top-up amount is ₦100' },
-        { status: 400 }
-      );
+    const user = await getCurrentUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get current balance
-    const balance = await db.vp_credit_balance.findUnique({
-      where: { user_id: user.id },
-    });
+    const body = await req.json();
+    const { amount } = body;
 
-    const currentBalance = balance?.balance || 0;
-    const newBalance = currentBalance + amount;
+    if (!amount || typeof amount !== 'number' || amount <= 0) {
+      return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
+    }
 
-    // Update balance
-    await db.vp_credit_balance.upsert({
-      where: { user_id: user.id },
-      create: {
-        user_id: user.id,
-        balance: newBalance,
-      },
-      update: {
-        balance: newBalance,
+    // Update user balance directly on vp_user table
+    const updatedUser = await db.vp_user.update({
+      where: { id: Number(user.id) },
+      data: {
+        balance: { increment: amount },
       },
     });
 
     // Create transaction record
-    await db.vp_transaction.create({
+    await db.vp_transactions.create({
       data: {
-        user_id: user.id,
+        vp_user: {
+          connect: { id: Number(user.id) },
+        },
         type: 'CREDIT',
-        amount,
-        balance_after: newBalance,
-        description: `Credit top-up`,
-        reference: `TOP_${Date.now()}`,
+        amount: amount,
+        balance_after: updatedUser.balance,
+        description: 'Balance Top-up',
+        reference: `TOPUP-${Date.now()}`,
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      balance: newBalance,
-      amount,
-    });
-  } catch (error: any) {
-    console.error('Top-up error:', error);
+    return NextResponse.json({ success: true, balance: updatedUser.balance });
+  } catch (error) {
+    console.error('Topup error:', error);
     return NextResponse.json(
-      { error: error.message || 'Top-up failed' },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }
