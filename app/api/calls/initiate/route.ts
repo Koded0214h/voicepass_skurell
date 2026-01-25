@@ -1,66 +1,82 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { encrypt } from '@/lib/encryption';
-import { requireAuth } from '@/lib/auth';
-import axios from 'axios';
+import { getCurrentUser } from '@/lib/auth';
 
-const VOICEPASS_API = process.env.VOICEPASS_API_URL || 'http://localhost:8000';
-
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const user = await requireAuth();
-    const { phoneNumber } = await req.json();
-
-    // Check balance
-    const balance = await db.vp_credit_balance.findUnique({
-      where: { user_id: user.id },
-    });
-
-    if (!balance || balance.balance < 3.5) {
-      return NextResponse.json(
-        { error: 'Insufficient balance' },
-        { status: 400 }
-      );
+    const user = await getCurrentUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const { phoneNumber, otp } = await req.json();
 
-    // Call VoicePass API
-    const response = await axios.post(`${VOICEPASS_API}/send-voice-otp`, {
-      phone_number: phoneNumber,
-      otp: otp,
+    if (!phoneNumber || !otp) {
+      return NextResponse.json({ error: 'Phone number and OTP are required' }, { status: 400 });
+    }
+
+    // Check balance directly on vp_user
+    const dbUser = await db.vp_user.findUnique({
+      where: { id: Number(user.id) },
+      select: { balance: true }
     });
 
-    const callId = response.data.call_id || `call_${Date.now()}`;
+    if (!dbUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const callCost = 10.0; // Fixed cost per call for now
+
+    if ((dbUser.balance || 0) < callCost) {
+      return NextResponse.json({ error: 'Insufficient balance' }, { status: 402 });
+    }
+
+    // Deduct balance
+    const updatedUser = await db.vp_user.update({
+      where: { id: Number(user.id) },
+      data: {
+        balance: { decrement: callCost }
+      }
+    });
+
+    // Create transaction record
+    await db.vp_transactions.create({
+      data: {
+        vp_user: {
+          connect: { id: Number(user.id) }
+        },
+        type: 'DEBIT',
+        amount: callCost,
+        description: `Voice OTP to ${phoneNumber}`,
+        reference: `CALL-${Date.now()}`,
+      }
+    });
 
     // Create call log
-    await db.vp_call_log.create({
+    const callLog = await db.vp_call_log.create({
       data: {
-        user_id: user.id,
-        call_id: callId,
-        phone_number: encrypt(phoneNumber),
-        otp: encrypt(otp),
+        user_id: Number(user.id),
+        call_id: `CID-${Date.now()}`,
+        phone_number: phoneNumber,
+        otp: otp,
         status: 'INITIATED',
-        cost: 0, // Will be updated on webhook
-      },
+        cost: callCost,
+        created_at: new Date().toISOString(),
+        duration: '0',
+      }
     });
 
-    return NextResponse.json({
-      success: true,
-      callId,
-      message: 'OTP call initiated',
+    return NextResponse.json({ 
+      success: true, 
+      callId: callLog.call_id,
+      message: 'Call initiated successfully' 
     });
-  } catch (error: unknown) {
-    console.error('Call initiation error:', error);
-    if (error instanceof Error) {
-      return NextResponse.json(
-        { error: error.message || 'Failed to initiate call' },
-        { status: 500 }
-      );
-    }
+
+  } catch (error) {
+    console.error('Initiate call error:', error);
     return NextResponse.json(
-      { error: 'Failed to initiate call' },
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }

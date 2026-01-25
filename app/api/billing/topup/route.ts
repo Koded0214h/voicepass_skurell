@@ -33,7 +33,6 @@ export async function POST(req: Request) {
         },
         type: 'CREDIT',
         amount: amount,
-        balance_after: updatedUser.balance,
         description: 'Balance Top-up',
         reference: `TOPUP-${Date.now()}`,
       },
