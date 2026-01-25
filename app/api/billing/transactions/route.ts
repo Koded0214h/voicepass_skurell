@@ -1,49 +1,43 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireAuth } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/auth';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const user = await requireAuth();
-    const { searchParams } = new URL(req.url);
-    
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const type = searchParams.get('type'); // CREDIT or DEBIT
-
-    const skip = (page - 1) * limit;
-
-    // Build filter
-    const where: any = { user_id: user.id };
-    if (type && type !== 'ALL') {
-      where.type = type;
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get transactions
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
+
+    const where = {
+      user_id: Number(user.id),
+    };
+
     const [transactions, total] = await Promise.all([
-      db.vp_transaction.findMany({
+      db.vp_transactions.findMany({
         where,
         orderBy: { created_at: 'desc' },
         skip,
         take: limit,
       }),
-      db.vp_transaction.count({ where }),
+      db.vp_transactions.count({ where }),
     ]);
 
     return NextResponse.json({
       transactions,
       pagination: {
-        page,
-        limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        pages: Math.ceil(total / limit),
+        current: page,
       },
     });
-  } catch (error: any) {
-    console.error('Fetch transactions error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch transactions' },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Transactions error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
