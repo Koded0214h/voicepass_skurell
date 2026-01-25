@@ -1,68 +1,61 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { decrypt } from '@/lib/encryption';
-import { requireAuth } from '@/lib/auth';
-import { Prisma } from '@prisma/client';
+import { getCurrentUser } from '@/lib/auth';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const user = await requireAuth();
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
 
-    const skip = (page - 1) * limit;
+    const where: any = {
+      user_id: Number(user.id),
+    };
 
-    // Build filter
-    const where: Prisma.vp_call_logWhereInput = { user_id: Number(user.id) };
-    if (status) where.status = status;
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
 
-    // Get logs
-    const [logs, total] = await Promise.all([
-      db.vp_call_log.findMany({
-        where,
-        orderBy: { created_at: 'desc' },
-        skip,
-        take: limit,
-      }),
-      db.vp_call_log.count({ where }),
-    ]);
+    // Fetch logs
+    const logs = await db.vp_call_log.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+    });
 
-    const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-    const IS_ENCRYPTION_CONFIGURED = ENCRYPTION_KEY && ENCRYPTION_KEY !== 'your-32-character-secret-key!!';
+    let filteredLogs = logs;
 
-    // Decrypt phone numbers for display
-    const decryptedLogs = logs.map(log => ({
-      ...log,
-      phone_number: IS_ENCRYPTION_CONFIGURED ? decrypt(log.phone_number || '') : log.phone_number,
-      otp: undefined, // Never expose OTP
-    }));
-
-    // Filter by search if provided
-    let filteredLogs = decryptedLogs;
+    // Apply search filter if present
     if (search) {
-      filteredLogs = decryptedLogs.filter(log =>
-        (log.phone_number || '').includes(search) || log.call_id.includes(search)
+      const searchLower = search.toLowerCase();
+      filteredLogs = logs.filter(log =>
+        (log.phone_number || '').toLowerCase().includes(searchLower) ||
+        (log.call_id || '').toLowerCase().includes(searchLower)
       );
     }
 
+    // Pagination
+    const total = filteredLogs.length;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+
     return NextResponse.json({
-      logs: filteredLogs,
+      logs: paginatedLogs,
       pagination: {
-        page,
-        limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        pages: Math.ceil(total / limit),
+        current: page,
       },
     });
   } catch (error) {
-    console.error('Fetch logs error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch logs' },
-      { status: 500 }
-    );
+    console.error('Logs error:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
