@@ -12,8 +12,15 @@ function randomAmount(min = 10, max = 500) {
 }
 
 async function main() {
-  console.log("🌱 Seeding database...");
+  console.log("🧹 Resetting database to a clean state...");
+  // Order of deletion is important to avoid foreign key constraint errors.
+  await prisma.vp_call_log.deleteMany();
+  await prisma.vp_transactions.deleteMany();
+  await prisma.vp_user.deleteMany();
+  console.log("✅ Database reset complete.");
 
+  console.log("\n🌱 Seeding database with fresh data...");
+  
   // 1. Create the Main Test User (Login User)
   // We use a fixed API key so you can easily copy it for testing
   const testUserApiKey = "vp_test_key_123456789";
