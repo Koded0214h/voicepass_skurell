@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Eye, X } from 'lucide-react';
 
@@ -22,14 +22,13 @@ interface CallLog {
 }
 
 const statusColorMap: { [key: string]: { background: string; text: string; border: string; dot: string } } = {
-    ANSWERED: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' },
-    COMPLETED: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' }, // Keeping completed green as per user request (not orange)
-    FAILED: { background: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', dot: 'bg-red-500' },
-    NO_ANSWER: { background: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', dot: 'bg-orange-500' },
-    BUSY: { background: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100', dot: 'bg-purple-500' },
-    UNAVAILABLE: { background: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-500' },
-    INITIATED: { background: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', dot: 'bg-blue-500' },
-    RINGING: { background: 'bg-yellow-50', text: 'text-yellow-600', border: 'border-yellow-100', dot: 'bg-yellow-500' },
+    answered: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' },
+    failed: { background: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', dot: 'bg-red-500' },
+    'no answer': { background: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', dot: 'bg-orange-500' },
+    busy: { background: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100', dot: 'bg-purple-500' },
+    unavailable: { background: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-500' },
+    initiated: { background: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', dot: 'bg-blue-500' },
+    ringing: { background: 'bg-yellow-50', text: 'text-yellow-600', border: 'border-yellow-100', dot: 'bg-yellow-500' },
 };
 
 function CallDetailsModal({ call, onClose }: { call: CallLog; onClose: () => void }) {
@@ -53,7 +52,7 @@ function CallDetailsModal({ call, onClose }: { call: CallLog; onClose: () => voi
                     </div>
                     <div className="space-y-1">
                         <p className="text-slate-500 font-medium">Status</p>
-                        <p className="text-slate-800">{call.status}</p>
+                        <p className="text-slate-800 capitalize">{call.status}</p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-slate-500 font-medium">Cost</p>
@@ -115,9 +114,9 @@ export default function CallLogsPage() {
 
     useEffect(() => {
         fetchCalls();
-    }, [page, statusFilter]);
+    }, [fetchCalls]);
 
-    async function fetchCalls() {
+    const fetchCalls = useCallback(async () => {
         try {
             setLoading(true);
             const params = new URLSearchParams({
@@ -126,20 +125,31 @@ export default function CallLogsPage() {
             });
 
             if (statusFilter !== 'ALL') {
-                params.append('status', statusFilter);
+                params.append('status', statusFilter.replace(/ /g, '_').toUpperCase());
             }
 
             const res = await fetch(`/api/calls/logs?${params}`, { cache: 'no-store' });
             const data = await res.json();
 
-            setCalls(data.logs || []);
+            const transformedLogs = (data.logs || []).map((log: CallLog) => {
+                let status = log.status.replace(/_/g, ' ').toLowerCase();
+                if (status === 'completed') {
+                    status = 'answered';
+                }
+                return {
+                    ...log,
+                    status,
+                };
+            });
+
+            setCalls(transformedLogs);
             setTotal(data.pagination?.total || 0);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching calls:', error);
             setLoading(false);
         }
-    }
+    }, [page, statusFilter, setLoading, setCalls, setTotal]);
 
     const filteredCalls = calls.filter(call =>
         call.phone_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -156,7 +166,7 @@ export default function CallLogsPage() {
             call.call_id,
             call.phone_number,
             call.duration ? `00:${String(call.duration).padStart(2, '0')}` : '00:00',
-            call.status,
+            call.status.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
             call.cost.toFixed(2)
         ]);
 
@@ -227,11 +237,11 @@ export default function CallLogsPage() {
                                 className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
                             >
                                 <option value="ALL">All Status</option>
-                                <option value="ANSWERED">Answered</option>
-                                <option value="FAILED">Failed</option>
-                                <option value="NO_ANSWER">No Answer</option>
-                                <option value="BUSY">Busy</option>
-                                <option value="UNAVAILABLE">Unavailable</option>
+                                <option value="answered">Answered</option>
+                                <option value="failed">Failed</option>
+                                <option value="no answer">No Answer</option>
+                                <option value="busy">Busy</option>
+                                <option value="unavailable">Unavailable</option>
                             </select>
                         </div>
                     </div>
@@ -250,7 +260,7 @@ export default function CallLogsPage() {
                             )}
                             {statusFilter !== 'ALL' && (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
-                                    Status: {statusFilter}
+                                    Status: <span className="capitalize">{statusFilter}</span>
                                     <button onClick={() => setStatusFilter('ALL')} className="hover:text-slate-900">
                                         <span className="material-symbols-outlined text-[16px]">close</span>
                                     </button>
@@ -323,7 +333,7 @@ export default function CallLogsPage() {
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${statusColorMap[call.status]?.background || 'bg-gray-100'} ${statusColorMap[call.status]?.text || 'text-gray-700'} ${statusColorMap[call.status]?.border || 'border-gray-200'}`}>
                                                     <span className={`size-1.5 rounded-full ${statusColorMap[call.status]?.dot || 'bg-gray-500'}`}></span>
-                                                    {call.status}
+                                                    <span className="capitalize">{call.status}</span>
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right font-mono text-slate-900 font-medium">

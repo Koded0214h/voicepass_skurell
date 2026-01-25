@@ -5,6 +5,16 @@ import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
+const statusBgColorMap: { [key: string]: string } = {
+  answered: 'bg-[#5da28c]',
+  failed: 'bg-red-500',
+  'no answer': 'bg-orange-500',
+  busy: 'bg-purple-500',
+  unavailable: 'bg-slate-500',
+  initiated: 'bg-blue-500',
+  ringing: 'bg-yellow-500',
+};
+
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState('7d');
   // State for dynamic data (initialize as empty or with default structure)
@@ -44,11 +54,18 @@ export default function AnalyticsPage() {
         const data = await response.json();
         setKpiData(data.kpis);
         setHourlyDistribution(data.hourly);
-        setStatusBreakdown(data.status.map((s: any) => ({
-          label: s.status,
-          value: s.percentage,
-          color: s.status === 'COMPLETED' ? 'bg-green-500' : s.status === 'FAILED' ? 'bg-red-500' : 'bg-slate-400',
-        })));
+        setStatusBreakdown(
+          data.status.map((s: { status: string; percentage: number }) => {
+            let status = s.status.replace(/_/g, ' ').toLowerCase();
+            if (status === 'completed') {
+              status = 'answered';
+            }
+            return {
+              label: status,
+              value: s.percentage,
+              color: statusBgColorMap[status] || 'bg-slate-400',
+            };
+          }));
         setDailySpendTrend(data.dailySpend);
         setTopPerformingHours(data.topHours);
         setPerformanceInsights(data.insights);
@@ -320,7 +337,7 @@ export default function AnalyticsPage() {
                     {statusBreakdown.map((item) => (
                       <div key={item.label}>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                          <span className="text-sm font-medium text-slate-700 capitalize">{item.label}</span>
                           <span className="text-sm font-bold text-slate-900">{item.value}%</span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -335,8 +352,6 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
               </div>
-
-
 
               {/* Cost Analysis */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

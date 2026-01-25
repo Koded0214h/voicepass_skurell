@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
+import { useEffect, useState, useMemo } from 'react';
+import { format, isThisMonth } from 'date-fns';
 
 interface Transaction {
-  id: string;
+  id: string | number | null;
   type: string;
-  amount: number;
-  balance_after: number;
+  amount: number | null;
+  balance_after: number | null;
   description: string;
   created_at: string;
 }
@@ -19,9 +19,20 @@ export default function BillingPage() {
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [selectedAmount, setSelectedAmount] = useState('');
 
-  useEffect(() => {
-    fetchBillingData();
-  }, []);
+  const monthlySpend = useMemo(() => {
+    const debitsThisMonth = transactions.filter(txn => {
+      if (txn.type !== 'DEBIT') {
+        return false;
+      }
+      const txnDate = new Date(txn.created_at);
+      return isThisMonth(txnDate);
+    });
+
+    const totalAmount = debitsThisMonth.reduce((sum, txn) => sum + (txn.amount || 0), 0);
+
+    return { totalAmount, transactionCount: debitsThisMonth.length };
+  }, [transactions]);
+
 
   async function fetchBillingData() {
     try {
@@ -40,6 +51,10 @@ export default function BillingPage() {
     }
   }
 
+  useEffect(() => {
+    fetchBillingData();
+  }, []);
+
   if (loading) {
     return <LoadingAnimation />;
   }
@@ -50,9 +65,9 @@ export default function BillingPage() {
       format(new Date(t.created_at), 'yyyy-MM-dd HH:mm:ss'),
       t.description,
       t.type,
-      t.amount.toFixed(2),
-      t.balance_after.toFixed(2),
-      t.id
+      (t.amount ?? 0).toFixed(2),
+      (t.balance_after ?? 0).toFixed(2),
+      String(t.id ?? '')
     ]);
 
     const csvContent = [
@@ -120,8 +135,8 @@ export default function BillingPage() {
                 </span>
               </div>
               <p className="text-slate-500 text-sm font-medium">Total Spent</p>
-              <h3 className="text-3xl font-bold text-slate-900 mt-1">₦0.00</h3>
-              <p className="text-slate-400 text-xs mt-1">0 transactions</p>
+              <h3 className="text-3xl font-bold text-slate-900 mt-1">₦{monthlySpend.totalAmount.toFixed(2)}</h3>
+              <p className="text-slate-400 text-xs mt-1">{monthlySpend.transactionCount} transactions</p>
             </div>
 
             {/* Average Cost */}
@@ -225,8 +240,8 @@ export default function BillingPage() {
                       </td>
                     </tr>
                   ) : (
-                    transactions.map((txn) => (
-                      <tr key={txn.id} className="hover:bg-slate-50 transition-colors">
+                    transactions.map((txn, index) => (
+                      <tr key={txn.id ?? index} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-600 font-mono text-xs">
                           {format(new Date(txn.created_at), 'MMM dd, yyyy HH:mm')}
                         </td>
@@ -246,13 +261,13 @@ export default function BillingPage() {
                         <td className={`px-6 py-4 text-right font-mono font-medium ${
                           txn.type === 'CREDIT' ? 'text-green-600' : 'text-red-600'
                         }`}>
-                          {txn.type === 'CREDIT' ? '+' : '-'}₦{txn.amount.toFixed(2)}
+                          {txn.type === 'CREDIT' ? '+' : '-'}₦{(txn.amount ?? 0).toFixed(2)}
                         </td>
                         <td className="px-6 py-4 text-right font-mono text-slate-900">
-                          ₦{txn.balance_after.toFixed(2)}
+                          {txn.balance_after != null ? `₦${txn.balance_after.toFixed(2)}` : '-'}
                         </td>
                         <td className="px-6 py-4 font-mono text-xs text-slate-500">
-                          {txn.id.slice(0, 8)}
+                          {txn.id ? String(txn.id).slice(0, 8) : '-'}
                         </td>
                       </tr>
                     ))

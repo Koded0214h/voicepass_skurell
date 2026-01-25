@@ -27,14 +27,13 @@ interface RecentCall {
 }
 
 const statusColorMap: { [key: string]: { background: string; text: string; border: string; dot: string } } = {
-    ANSWERED: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' },
-    COMPLETED: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' }, // Keeping completed green as per user request (not orange)
-    FAILED: { background: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', dot: 'bg-red-500' },
-    NO_ANSWER: { background: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', dot: 'bg-orange-500' },
-    BUSY: { background: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100', dot: 'bg-purple-500' },
-    UNAVAILABLE: { background: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-500' },
-    INITIATED: { background: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', dot: 'bg-blue-500' },
-    RINGING: { background: 'bg-yellow-50', text: 'text-yellow-600', border: 'border-yellow-100', dot: 'bg-yellow-500' },
+    answered: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' },
+    failed: { background: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', dot: 'bg-red-500' },
+    'no answer': { background: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', dot: 'bg-orange-500' },
+    busy: { background: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-100', dot: 'bg-purple-500' },
+    unavailable: { background: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-500' },
+    initiated: { background: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', dot: 'bg-blue-500' },
+    ringing: { background: 'bg-yellow-50', text: 'text-yellow-600', border: 'border-yellow-100', dot: 'bg-yellow-500' },
 };
 
 export default function DashboardPage() {
@@ -70,11 +69,17 @@ export default function DashboardPage() {
         const balanceData = await balanceRes.json();
         const analyticsData = await analyticsRes.json();
 
-        const allLogs = logsData.logs || [];
+        const allLogs = (logsData.logs || []).map((log: RecentCall) => {
+          let status = log.status.replace(/_/g, ' ').toLowerCase();
+          if (status === 'completed') {
+            status = 'answered';
+          }
+          return { ...log, status };
+        });
         const successful = allLogs.filter((l: RecentCall) => 
-          l.status === 'ANSWERED' || l.status === 'COMPLETED'
+          l.status === 'answered'
         );
-        const failed = allLogs.filter((l: RecentCall) => l.status === 'FAILED');
+        const failed = allLogs.filter((l: RecentCall) => l.status === 'failed');
 
         setStats({
           totalCalls: allLogs.length,
@@ -421,7 +426,7 @@ export default function DashboardPage() {
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${statusColorMap[call.status]?.background || 'bg-gray-100'} ${statusColorMap[call.status]?.text || 'text-gray-700'} ${statusColorMap[call.status]?.border || 'border-gray-200'}`}>
                             <span className={`size-1.5 rounded-full ${statusColorMap[call.status]?.dot || 'bg-gray-500'}`}></span>
-                            {call.status}
+                            <span className="capitalize">{call.status}</span>
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right font-mono text-slate-900">
@@ -515,7 +520,7 @@ function CallDetailsModal({ call, onClose }: { call: RecentCall; onClose: () => 
             <p className="text-xs font-medium text-slate-500">Status</p>
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${statusColorMap[call.status]?.background || 'bg-gray-100'} ${statusColorMap[call.status]?.text || 'text-gray-700'} ${statusColorMap[call.status]?.border || 'border-gray-200'}`}>
               <span className={`size-1.5 rounded-full ${statusColorMap[call.status]?.dot || 'bg-gray-500'}`}></span>
-              {call.status}
+              <span className="capitalize">{call.status}</span>
             </span>
           </div>
         </div>
