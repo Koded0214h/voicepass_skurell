@@ -52,10 +52,10 @@ export async function POST(req: NextRequest) {
 
     // Create session
     const token = createSession({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
+      id: user.id.toString(),
+      email: user.email!,
+      name: user.name || '',
+      role: user.role || '',
       company: user.company || '',
       phone: user.phone || '',
     });
@@ -81,4 +81,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
