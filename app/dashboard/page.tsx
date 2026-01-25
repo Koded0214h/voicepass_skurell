@@ -412,7 +412,10 @@ export default function DashboardPage() {
                           {format(new Date(call.created_at), 'MMM dd, HH:mm:ss')}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900">
-                          {call.phone_number.slice(0, -4)}***{call.phone_number.slice(-4)}
+                          {call.phone_number.length > 8
+                            ? `${call.phone_number.slice(0, 4)}••••${call.phone_number.slice(-4)}`
+                            : call.phone_number
+                          }
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
