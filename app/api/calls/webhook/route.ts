@@ -1,83 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const data = await req.json();
-    
-    const {
-      call_id,
-      status,
-      start_time,
-      answer_time,
-      ring_time,
-      call_time,
-    } = data;
+    const body = await req.json();
+    const { call_id, status, duration, cost } = body;
+
+    if (!call_id) {
+      return NextResponse.json({ error: 'Missing call_id' }, { status: 400 });
+    }
 
     // Find call log
-    const callLog = await db.vp_call_log.findUnique({
+    // Using findFirst because call_id is not marked as @unique in the schema
+    const callLog = await db.vp_call_log.findFirst({
       where: { call_id: call_id },
       include: { user: true },
     });
 
     if (!callLog) {
-      return NextResponse.json(
-        { error: 'Call not found' },
-        { status: 404 }
-      );
-    }
-
-    // Calculate cost
-    let cost = 0;
-    if (status === 'ANSWERED' || status === 'COMPLETED') {
-      cost = 3.5; // ₦3.5 per successful call
+      return NextResponse.json({ error: 'Call log not found' }, { status: 404 });
     }
 
     // Update call log
     await db.vp_call_log.update({
-      where: { call_id: call_id },
+      where: { id: callLog.id },
       data: {
-        status,
-        start_time: start_time ? new Date(start_time) : null,
-        answer_time: answer_time ? new Date(answer_time) : null,
-        ring_time: ring_time,
-        duration: call_time,
-        cost,
-        webhook_sent: true,
+        status: status || undefined,
+        duration: duration ? String(duration) : undefined,
+        cost: cost ? Number(cost) : undefined,
+        end_at: new Date().toISOString(),
       },
     });
-
-    // Deduct balance if call was successful
-    if (cost > 0) {
-      const balance = await db.vp_credit_balance.findUnique({
-        where: { user_id: callLog.user_id },
-      });
-
-      const newBalance = (balance?.balance || 0) - cost;
-
-      await db.vp_credit_balance.update({
-        where: { user_id: callLog.user_id },
-        data: { balance: newBalance },
-      });
-
-      await db.vp_transaction.create({
-        data: {
-          user_id: callLog.user_id,
-          type: 'DEBIT',
-          amount: cost,
-          balance_after: newBalance,
-          description: `Voice OTP call - ${call_id}`,
-          reference: call_id,
-        },
-      });
-    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Webhook error:', error);
-    return NextResponse.json(
-      { error: 'Webhook processing failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
