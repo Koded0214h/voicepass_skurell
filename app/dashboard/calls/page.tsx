@@ -93,6 +93,7 @@ function CallDetailsModal({ call, onClose }: { call: CallLog; onClose: () => voi
     );
 }
 export default function CallLogsPage() {
+    console.log('DATABASE_URL from page:', process.env.DATABASE_URL);
     const [calls, setCalls] = useState<CallLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
