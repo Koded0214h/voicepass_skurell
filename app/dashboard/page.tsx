@@ -422,7 +422,7 @@ export default function DashboardPage() {
                     recentCalls.map((call) => (
                       <tr key={call.id} className="group hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                          {format(new Date(call.created_at), 'MMM dd, HH:mm:ss')}
+                          {format(new Date(parseFloat(call.created_at) * 1000), 'MMM dd, HH:mm:ss')}
                         </td>
                         {currentUser.role === 'admin' && (
                             <td className="px-6 py-4 font-medium text-slate-900">
@@ -430,10 +430,11 @@ export default function DashboardPage() {
                             </td>
                         )}
                         <td className="px-6 py-4 font-medium text-slate-900">
-                          {call.phone_number.length > 8
-                            ? `${call.phone_number.slice(0, 4)}••••${call.phone_number.slice(-4)}`
-                            : call.phone_number
-                          }
+                          {call.phone_number ? (
+                            call.phone_number.length > 8
+                              ? `${call.phone_number.slice(0, 4)}••••${call.phone_number.slice(-4)}`
+                              : call.phone_number
+                          ) : ''}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">

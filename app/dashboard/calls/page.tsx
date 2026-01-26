@@ -162,7 +162,7 @@ export default function CallLogsPage() {
     }, [fetchCalls]);
     
     const filteredCalls = calls.filter(call =>
-        call.phone_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (call.phone_number && call.phone_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (call.call_id && call.call_id.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
@@ -351,8 +351,7 @@ export default function CallLogsPage() {
                                     filteredCalls.map((call) => (
                                         <tr key={call.id} className="group hover:bg-slate-50 transition-colors">
                                             <td className="px-6 py-4 text-slate-600 font-mono text-xs">
-                                                {format(new Date(call.created_at), 'MMM dd, HH:mm:ss')}
-                                            </td>
+                                                                                                  {format(new Date(parseFloat(call.created_at) * 1000), 'MMM dd, HH:mm:ss')}                                            </td>
                                             {user.role === 'admin' && (
                                                 <td className="px-6 py-4 font-medium text-slate-900">
                                                     {call.user?.name || call.user?.email?.split('@')[0] || 'Unknown'}
@@ -362,11 +361,11 @@ export default function CallLogsPage() {
                                                 {call.call_id ? `${call.call_id.slice(0, 12)}...` : '-'}
                                             </td>
                                             <td className="px-6 py-4 font-medium text-slate-900">
-                                                {call.phone_number.length > 8
-                                                    ? `${call.phone_number.slice(0, 4)}••••${call.phone_number.slice(-4)}`
-                                                    : call.phone_number
-                                                }
-                                            </td>
+                                                                                                  {call.phone_number ? (
+                                                                                                      call.phone_number.length > 8
+                                                                                                          ? `${call.phone_number.slice(0, 4)}••••${call.phone_number.slice(-4)}`
+                                                                                                          : call.phone_number
+                                                                                                  ) : ''}                                            </td>
                                             <td className="px-6 py-4 text-slate-600">
                                                 {call.duration ? `${call.duration}s` : '-'}
                                             </td>
