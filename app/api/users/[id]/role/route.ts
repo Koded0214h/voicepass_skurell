@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const currentUser = await getCurrentUser();
@@ -20,7 +20,8 @@ export async function PATCH(
         }
 
         const { role } = await req.json();
-        const userId = parseInt(params.id);
+        const { id } = await params;
+        const userId = parseInt(id);
 
         // Prevent admins from modifying their own role
         if (userId.toString() === currentUser.id) {
