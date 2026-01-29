@@ -70,7 +70,7 @@ export default function VoicePassLanding() {
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center relative z-10">
           <div>
             <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
-              Voice OTP <span className="text-primary">Authentication</span> System
+              Send <span className="text-primary">Voice OTP </span>via API
             </h1>
             <p className="text-xl text-slate-600 mb-8 leading-relaxed">
               Secure authentication via automated voice calls. 30% cheaper than SMS.
