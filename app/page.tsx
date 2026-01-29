@@ -813,7 +813,7 @@ export default function VoicePassLanding() {
                 <span className="text-xl font-bold">VoicePass</span>
               </div>
               <p className="text-slate-400 leading-relaxed">
-                Voice OTP Authentication System by Skurell Limited. Cheaper, Safer & More Reliable Than SMS OTP.
+                Voice OTP Authentication System by Skurel Limited. Cheaper, Safer & More Reliable Than SMS OTP.
               </p>
             </div>
             
@@ -842,13 +842,13 @@ export default function VoicePassLanding() {
               <ul className="space-y-3 text-slate-400">
                 <li><a href="tel:08069335817" className="hover:text-primary transition-colors">08069335817</a></li>
                 <li><a href="mailto:sales@voicepass.com" className="hover:text-primary transition-colors">sales@voicepass.com</a></li>
-                <li>Skurell Limited</li>
+                <li>Skurel Limited</li>
               </ul>
             </div>
           </div>
           
           <div className="pt-8 border-t border-slate-800 text-center text-slate-400">
-            <p>&copy; 2024 VoicePass by Skurell Limited. All rights reserved.</p>
+            <p>&copy; 2024 VoicePass by Skurel Limited. All rights reserved.</p>
           </div>
         </div>
       </footer>
