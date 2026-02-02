@@ -32,6 +32,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Insufficient balance' }, { status: 402 });
     }
 
+    // Call external VoicePass API
+    const response = await fetch("https://api.voicepass.skurel.com/send-voice-otp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer vp_live_9f2c3a8e7d4b1a6c0e5f9a2d8c4b7e1f9a3c6d5e8f2a1b4"
+      },
+      body: JSON.stringify({
+        phone: phoneNumber,
+        otp: otp
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('VoicePass API error:', data);
+      return NextResponse.json({ error: 'Failed to initiate call via provider' }, { status: 502 });
+    }
+
     // Deduct balance
     const updatedUser = await db.vp_user.update({
       where: { id: Number(user.id) },
@@ -57,10 +77,10 @@ export async function POST(req: Request) {
     const callLog = await db.vp_call_log.create({
       data: {
         user_id: Number(user.id),
-        call_id: `CID-${Date.now()}`,
+        call_id: data.call_id || `CID-${Date.now()}`,
         phone_number: phoneNumber,
         otp: otp,
-        status: 'INITIATED',
+        status: data.status ? data.status.toUpperCase() : 'INITIATED',
         cost: callCost,
         created_at: new Date().toISOString(),
         duration: '0',
