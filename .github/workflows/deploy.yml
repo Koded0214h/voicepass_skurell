@@ -1,7 +1,7 @@
 name: Docker CI/CD Deployment
 on:
   push:
-    branches: [ "main" ] # Triggers on push to main branch
+    branches: [ "main" ] # Triggers on push to main branch.
 
 jobs:
   build-and-deploy:
