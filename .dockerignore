@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+*.lock
+dist
+coverage
+
+
+# Next.js build output
+.next
+out
+
+# Prisma
+# The prisma folder itself should be copied into the Docker image during the build
+# to generate the client. However, you might ignore specific migration data 
+# if it is not needed in the final image runner stage.
+
+# Environment files
+.env
+.env*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor/OS files
+.git
+.gitignore
+.dockerignore
+.vscode
+pids
+*.pid
+*.seed
+.swp
+.#*
