@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { UserProvider, SessionUser } from '../contexts/UserContext';
 
 export default function DashboardLayout({
@@ -210,17 +210,84 @@ export default function DashboardLayout({
   );
 }
 
+const TERMINAL_SUCCESS = ['ANSWERED', 'COMPLETED'];
+const TERMINAL_FAILURE = ['NOANSWER', 'UNAVAILABLE', 'BUSY', 'FAILED', 'CANCELED', 'CANCELLED'];
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_ATTEMPTS = 30;
+
+function normalizeStatus(s: string): string {
+  return (s || '').toUpperCase().replace(/\s/g, '').replace(/_/g, '').replace(/-/g, '');
+}
+
 function OTPModal({ onClose }: { onClose: () => void }) {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [callId, setCallId] = useState<string | null>(null);
+  const [callStatus, setCallStatus] = useState<string | null>(null);
+  const pollCountRef = useRef(0);
+
+  const notifyCallsUpdated = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('calls-updated'));
+    }
+  };
+
+  useEffect(() => {
+    if (!callId) return;
+
+    const checkStatus = async (): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/calls/logs?callId=${encodeURIComponent(callId)}`, { cache: 'no-store' });
+        const data = await res.json();
+        console.log('Call status data:', data);
+        const raw = data?.log?.status ?? '';
+        const status = normalizeStatus(raw);
+
+        if (TERMINAL_SUCCESS.includes(status)) {
+          setCallStatus('ANSWERED');
+          return true;
+        }
+        if (TERMINAL_FAILURE.includes(status)) {
+          setCallStatus(status || 'FAILED');
+          return true;
+        }
+      } catch {
+        // ignore fetch errors, keep polling
+      }
+      return false;
+    };
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+    (async () => {
+      if (await checkStatus()) return;
+      intervalId = setInterval(async () => {
+        pollCountRef.current += 1;
+        const done = await checkStatus();
+        if (done) {
+          if (intervalId) clearInterval(intervalId);
+          return;
+        }
+        if (pollCountRef.current >= POLL_MAX_ATTEMPTS) {
+          if (intervalId) clearInterval(intervalId);
+          setCallStatus('POLL_ENDED');
+        }
+      }, POLL_INTERVAL_MS);
+    })();
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [callId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setCallId(null);
+    setCallStatus(null);
+    pollCountRef.current = 0;
 
     try {
       const res = await fetch('/api/calls/initiate', {
@@ -235,11 +302,7 @@ function OTPModal({ onClose }: { onClose: () => void }) {
         throw new Error(data.error || 'Failed to initiate call');
       }
 
-      setSuccess(true);
-      setTimeout(() => {
-        onClose();
-        window.location.reload();
-      }, 2000);
+      setCallId(data.callId || data.call_id || null);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -251,17 +314,75 @@ function OTPModal({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const handleDone = () => {
+    notifyCallsUpdated();
+    setCallId(null);
+    setCallStatus(null);
+    setPhoneNumber('');
+    setOtpCode('');
+    onClose();
+  };
+
+  const isPolling = callId != null && callStatus == null;
+  const isSuccess = callStatus === 'ANSWERED';
+  const isFailure = callStatus != null && callStatus !== 'ANSWERED' && callStatus !== 'POLL_ENDED';
+  const isPollEnded = callStatus === 'POLL_ENDED';
+
+  useEffect(() => {
+    if (!isPollEnded) return;
+    const t = setTimeout(handleDone, 2000);
+    return () => clearTimeout(t);
+  }, [isPollEnded]);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
         <h2 className="text-2xl font-bold mb-4 text-slate-900">Send Voice OTP</h2>
 
-        {success ? (
+        {isSuccess ? (
           <div className="text-center py-8">
             <div className="text-6xl mb-4">✅</div>
-            <p className="text-lg font-semibold text-green-600">
-              OTP call initiated successfully!
-            </p>
+            <p className="text-lg font-semibold text-green-600">Call answered – OTP delivered</p>
+            <button
+              type="button"
+              onClick={handleDone}
+              className="mt-6 w-full py-3 bg-[#5da28c] text-white rounded-lg hover:bg-[#4a8572] font-bold"
+            >
+              Done
+            </button>
+          </div>
+        ) : isFailure ? (
+          <div className="text-center py-8">
+            <div className="text-6xl mb-4">❌</div>
+            <p className="text-lg font-semibold text-red-600">Call ended: {callStatus}</p>
+            <button
+              type="button"
+              onClick={handleDone}
+              className="mt-6 w-full py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 font-bold"
+            >
+              Done
+            </button>
+          </div>
+        ) : isPolling ? (
+          <div className="text-center py-8">
+            <div className="animate-pulse text-4xl mb-4">📞</div>
+            <p className="text-lg font-medium text-slate-700">Call initiated. Checking status…</p>
+            <p className="text-sm text-slate-500 mt-2">This may take a few seconds</p>
+            <button type="button" onClick={handleDone} className="mt-4 text-sm text-slate-500 underline">
+              Close anyway
+            </button>
+          </div>
+        ) : isPollEnded ? (
+          <div className="text-center py-8">
+            <p className="text-lg font-medium text-slate-600">Status could not be determined.</p>
+            <p className="text-sm text-slate-500 mt-2">Closing and refreshing…</p>
+            <button
+              type="button"
+              onClick={handleDone}
+              className="mt-6 w-full py-3 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 font-bold"
+            >
+              Done
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>

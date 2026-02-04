@@ -10,6 +10,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
+    const callId = searchParams.get('callId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const status = searchParams.get('status');
@@ -17,6 +18,18 @@ export async function GET(req: Request) {
     const view = searchParams.get('view');
     
     const isAdminView = user.role === 'admin' && view === 'admin';
+
+    // Single call status lookup for modal polling
+    if (callId) {
+      const whereCall: { call_id: string; user_id?: number } = { call_id: callId };
+      if (user.role !== 'admin') whereCall.user_id = Number(user.id);
+      const log = await db.vp_call_log.findFirst({
+        where: whereCall,
+        include: { user: { select: { name: true, email: true } } },
+      });
+      //console.log('Call log:', log);
+      return NextResponse.json({ log: log || null });
+    }
 
     const where: any = {};
 

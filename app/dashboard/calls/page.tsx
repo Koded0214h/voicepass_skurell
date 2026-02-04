@@ -139,7 +139,14 @@ export default function CallLogsPage() {
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [selectedCall, setSelectedCall] = useState<CallLog | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
     const user = useUser();
+
+    useEffect(() => {
+        const handler = () => setRefreshKey((k) => k + 1);
+        window.addEventListener('calls-updated', handler);
+        return () => window.removeEventListener('calls-updated', handler);
+    }, []);
 
     const fetchCalls = useCallback(async () => {
         if (!user) return;
@@ -178,7 +185,7 @@ export default function CallLogsPage() {
             console.error('Error fetching calls:', error);
             setLoading(false);
         }
-    }, [page, statusFilter, user]);
+    }, [page, statusFilter, user, refreshKey]);
 
     useEffect(() => {
         fetchCalls();

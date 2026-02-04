@@ -47,7 +47,14 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [volumeFilter, setVolumeFilter] = useState('Day');
   const [selectedCall, setSelectedCall] = useState<RecentCall | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const currentUser = useUser();
+
+  useEffect(() => {
+    const handler = () => setRefreshKey((k) => k + 1);
+    window.addEventListener('calls-updated', handler);
+    return () => window.removeEventListener('calls-updated', handler);
+  }, []);
   
   // Chart Data State
   const [volumeTrend, setVolumeTrend] = useState<{ label: string, value: number }[]>([]);
@@ -112,7 +119,7 @@ export default function DashboardPage() {
     if (currentUser) {
         fetchDashboardData();
     }
-  }, [volumeFilter, currentUser]);
+  }, [volumeFilter, currentUser, refreshKey]);
 
   // Initialize Volume Chart
   useEffect(() => {
