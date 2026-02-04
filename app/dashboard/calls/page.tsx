@@ -26,6 +26,15 @@ interface CallLog {
     } | null;
 }
 
+function formatDate(value: string | null | undefined, fmt = 'MMM dd, yyyy HH:mm:ss'): string {
+    if (value == null || value === '') return '-';
+    const num = Number(value);
+    const d = !Number.isNaN(num) && num > 0 && num < 1e12
+        ? new Date(num * 1000)
+        : new Date(value);
+    return Number.isNaN(d.getTime()) ? '-' : format(d, fmt);
+}
+
 const statusColorMap: { [key: string]: { background: string; text: string; border: string; dot: string } } = {
     answered: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' },
     failed: { background: 'bg-red-50', text: 'text-red-600', border: 'border-red-100', dot: 'bg-red-500' },
@@ -93,23 +102,23 @@ function CallDetailsModal({ call, onClose }: { call: CallLog; onClose: () => voi
                     </div>
                     <div className="space-y-1">
                         <p className="text-slate-500">Created At</p>
-                        <p className="text-slate-800 text-xs">{format(new Date(call.created_at), 'MMM dd, yyyy HH:mm:ss')}</p>
+                        <p className="text-slate-800 text-xs">{formatDate(call.created_at)}</p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-slate-500">Start Time</p>
-                        <p className="text-slate-800 text-xs">{call.start_time ? format(new Date(call.start_time), 'MMM dd, yyyy HH:mm:ss') : '-'}</p>
+                        <p className="text-slate-800 text-xs">{formatDate(call.start_time)}</p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-slate-500">Answer Time</p>
-                        <p className="text-slate-800 text-xs">{call.answer_time ? format(new Date(call.answer_time), 'MMM dd, yyyy HH:mm:ss') : '-'}</p>
+                        <p className="text-slate-800 text-xs">{formatDate(call.answer_time)}</p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-slate-500">Ring Time</p>
-                        <p className="text-slate-800 text-xs">{call.ring_time ? format(new Date(call.ring_time), 'MMM dd, yyyy HH:mm:ss') : '-'}</p>
+                        <p className="text-slate-800 text-xs">{formatDate(call.ring_time)}</p>
                     </div>
                     <div className="space-y-1">
                         <p className="text-slate-500">End Time</p>
-                        <p className="text-slate-800 text-xs">{call.end_at ? format(new Date(call.end_at), 'MMM dd, yyyy HH:mm:ss') : '-'}</p>
+                        <p className="text-slate-800 text-xs">{formatDate(call.end_at)}</p>
                     </div>
                 </div>
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center rounded-b-xl">
@@ -215,7 +224,7 @@ export default function CallLogsPage() {
         }
         const rows = calls.map(call => {
             const baseRow = [
-                format(new Date(call.created_at), 'yyyy-MM-dd HH:mm:ss'),
+                formatDate(call.created_at, 'yyyy-MM-dd HH:mm:ss'),
                 call.call_id,
                 call.phone_number,
                 call.duration ? `00:${String(call.duration).padStart(2, '0')}` : '00:00',
@@ -418,7 +427,7 @@ export default function CallLogsPage() {
                                             onClick={() => setSelectedCall(call)}
                                         >
                                             <td className="px-4 py-3 md:px-6 md:py-4 text-slate-600 font-mono text-xs">
-                                                                                                  {format(new Date(parseFloat(call.created_at) * 1000), 'MMM dd, HH:mm:ss')}                                            </td>
+                                                                                                  {formatDate(call.created_at, 'MMM dd, HH:mm:ss')}                                            </td>
                                             {user.role === 'admin' && (
                                                 <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-slate-900">
                                                     {call.user?.name || call.user?.email?.split('@')[0] || 'Unknown'}

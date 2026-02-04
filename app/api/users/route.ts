@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { getCurrentUser } from '@/lib/auth';
 import { hashPassword } from '@/lib/encryption';
 import { db } from '@/lib/db';
+import { generateApiKey } from '@/lib/utils';
 
 const prisma = new PrismaClient();
 
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
         // Hash password
         const hashedPassword = await hashPassword(password);
 
-        // Create user
+        // Create user with generated API key
         const user = await db.vp_user.create({
           data: {
             email,
@@ -116,6 +117,7 @@ export async function POST(req: NextRequest) {
             phone: phone_number,
             role: role || 'user',
             is_active: true,
+            api_key: generateApiKey(),
           },
         });
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { hashPassword } from '@/lib/encryption';
 import { createSession, setSessionCookie } from '@/lib/auth';
+import { generateApiKey } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user
+    // Create user with generated API key
     const user = await db.vp_user.create({
       data: {
         email,
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
         name,
         role: 'client',
         is_active: true,
+        api_key: generateApiKey(),
       },
     });
 
