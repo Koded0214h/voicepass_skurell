@@ -20,6 +20,7 @@ export async function GET() {
         company: true,
         phone: true,
         balance: true,
+        webhook_url: true,
       },
     });
 
@@ -42,15 +43,17 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json();
-    const { name, company, phone } = body;
+    const { name, company, phone, webhook_url: webhookUrl } = body;
+
+    const data: { name?: string; company?: string; phone?: string; webhook_url?: string | null } = {};
+    if (name !== undefined) data.name = name;
+    if (company !== undefined) data.company = company;
+    if (phone !== undefined) data.phone = phone;
+    if (webhookUrl !== undefined) data.webhook_url = webhookUrl === '' ? null : webhookUrl;
 
     const updatedUser = await db.vp_user.update({
       where: { id: Number(user.id) },
-      data: {
-        name,
-        company,
-        phone,
-      },
+      data,
       select: {
         id: true,
         email: true,
@@ -59,6 +62,7 @@ export async function PUT(req: Request) {
         company: true,
         phone: true,
         balance: true,
+        webhook_url: true,
       },
     });
 

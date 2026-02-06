@@ -387,52 +387,109 @@ function NotificationsTab() {
 }
 
 function WebhooksTab() {
-  const [showAddWebhookModal, setShowAddWebhookModal] = useState(false);
+  const [showWebhookModal, setShowWebhookModal] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [currentWebhookUrl, setCurrentWebhookUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const handleAddWebhook = () => {
-    console.log('Adding webhook:', webhookUrl);
-    // Here you would typically make an API call to add the webhook
-    setShowAddWebhookModal(false);
-    setWebhookUrl(''); // Clear the input field
+  useEffect(() => {
+    async function fetchWebhook() {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentWebhookUrl(data.webhook_url ?? null);
+        }
+      } catch (e) {
+        console.error('Failed to fetch webhook:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchWebhook();
+  }, []);
+
+  const openModal = () => {
+    setWebhookUrl(currentWebhookUrl ?? '');
+    setMessage(null);
+    setShowWebhookModal(true);
+  };
+
+  const handleSaveWebhook = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhook_url: webhookUrl.trim() || '' }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      const data = await res.json();
+      setCurrentWebhookUrl(data.webhook_url ?? null);
+      setShowWebhookModal(false);
+      setMessage({ type: 'success', text: 'Webhook URL saved successfully.' });
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to save webhook URL. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6">
+        {message && (
+          <div className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {message.text}
+          </div>
+        )}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-6">
-          <h3 className="text-lg font-bold text-slate-900">Webhook Endpoints</h3>
+          <h3 className="text-lg font-bold text-slate-900">Webhook Endpoint</h3>
           <button
-            onClick={() => setShowAddWebhookModal(true)}
+            onClick={openModal}
             className="px-4 py-2 bg-[#5da28c] text-white rounded-lg hover:bg-[#4a8572] transition-colors text-sm font-bold"
           >
-            + Add Endpoint
+            {currentWebhookUrl ? 'Edit Endpoint' : '+ Add Endpoint'}
           </button>
         </div>
-        
-        <div className="space-y-3">
-          <div className="p-4 border border-slate-200 rounded-lg hover:border-[#5da28c]/50 transition-colors">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span className="font-mono text-sm text-slate-900">https://api.myapp.com/webhooks/voicepass</span>
-              </div>
-              <button className="text-slate-400 hover:text-slate-600">
-                <span className="material-symbols-outlined text-[20px]">more_vert</span>
-              </button>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-              <span>Events: call.completed, call.failed</span>
-              <span>•</span>
-              <span>Last delivery: 5 mins ago</span>
-            </div>
-          </div>
 
-          <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-lg">
-            <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">webhook</span>
-            <p className="text-sm text-slate-500">No additional webhooks configured</p>
+        {loading ? (
+          <div className="p-8 text-center text-slate-500 text-sm">Loading...</div>
+        ) : currentWebhookUrl ? (
+          <div className="space-y-3">
+            <div className="p-4 border border-slate-200 rounded-lg hover:border-[#5da28c]/50 transition-colors">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0"></span>
+                  <span className="font-mono text-sm text-slate-900 break-all">{currentWebhookUrl}</span>
+                </div>
+                <button
+                  onClick={openModal}
+                  className="text-slate-400 hover:text-slate-600 flex-shrink-0"
+                  title="Edit"
+                >
+                  <span className="material-symbols-outlined text-[20px]">edit</span>
+                </button>
+              </div>
+              <div className="text-xs text-slate-500">Call events (initiated, answered, failed, etc.) are sent to this URL.</div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-lg">
+            <span className="material-symbols-outlined text-4xl text-slate-300 mb-2 block">webhook</span>
+            <p className="text-sm text-slate-500 mb-2">No webhook URL configured</p>
+            <p className="text-xs text-slate-400">Add an endpoint to receive call status notifications.</p>
+            <button
+              onClick={openModal}
+              className="mt-4 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium"
+            >
+              + Add Endpoint
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6">
@@ -454,12 +511,14 @@ function WebhooksTab() {
         </div>
       </div>
 
-      {showAddWebhookModal && (
+      {showWebhookModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold text-slate-900 mb-4">Add Webhook Endpoint</h3>
-            <p className="text-sm text-slate-600 mb-4">Enter the URL where you want to receive webhook notifications.</p>
-            
+            <h3 className="text-xl font-bold text-slate-900 mb-4">
+              {currentWebhookUrl ? 'Edit Webhook Endpoint' : 'Add Webhook Endpoint'}
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">Enter the URL where you want to receive call event notifications.</p>
+
             <input
               type="url"
               placeholder="https://your-app.com/webhook"
@@ -470,16 +529,17 @@ function WebhooksTab() {
 
             <div className="flex justify-end gap-3">
               <button
-                onClick={() => { setShowAddWebhookModal(false); setWebhookUrl(''); }}
+                onClick={() => { setShowWebhookModal(false); setWebhookUrl(''); setMessage(null); }}
                 className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
               >
                 Cancel
               </button>
               <button
-                onClick={handleAddWebhook}
-                className="px-4 py-2 bg-[#5da28c] text-white rounded-lg hover:bg-[#4a8572] transition-colors font-bold"
+                onClick={handleSaveWebhook}
+                disabled={saving}
+                className="px-4 py-2 bg-[#5da28c] text-white rounded-lg hover:bg-[#4a8572] transition-colors font-bold disabled:opacity-50"
               >
-                Add Webhook
+                {saving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>

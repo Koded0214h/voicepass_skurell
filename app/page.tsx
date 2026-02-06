@@ -514,6 +514,7 @@ export default function VoicePassLanding() {
   "call_id": "call-9f23ab21ess",
   "duration": 12,
   "cost": 3.8,
+  "status": "ANSWERED", // ANSWERED, BUSY, FAILED, NOANSWER, UNAVAILABLE
   "created_at": "2026-02-06T14:30:12Z",
   "start_time": "2026-02-06T14:30:12Z",
   "answer_time": "2026-02-06T14:30:12Z",
