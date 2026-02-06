@@ -65,15 +65,15 @@ export default function VoicePassLanding() {
         <div className="absolute top-0 right-0 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative z-10">
-          <div className="min-w-0">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight">
+          <div className="min-w-0 text-center md:text-left">
+            <h1 className="text-5xl sm:text-5xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight">
               Send <span className="text-primary">Voice OTP</span><br />
               via API
             </h1>
-            <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-6 sm:mb-8 leading-relaxed max-w-xl">
+            <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-6 sm:mb-8 leading-relaxed max-w-xl md:max-w-none mx-auto md:mx-0">
               Secure authentication via automated voice calls. 30% cheaper than SMS.
             </p>
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mb-8 sm:mb-12">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mb-8 sm:mb-12 justify-center md:justify-start">
               <Link href="/signup" className="px-5 sm:px-6 py-2.5 sm:py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-all hover:shadow-lg text-center">
                 Get Started
               </Link>
@@ -81,7 +81,7 @@ export default function VoicePassLanding() {
                 View Documentation
               </a>
             </div>
-            <div className="grid grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+            <div className="grid grid-cols-3 gap-4 sm:gap-6 md:gap-8 text-center md:text-left">
               <div>
                 <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary mb-0.5 sm:mb-1">30%</div>
                 <div className="text-xs sm:text-sm text-slate-600">Cost Savings</div>
