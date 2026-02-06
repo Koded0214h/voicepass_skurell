@@ -22,11 +22,8 @@ import {
   Building,
   Radio,
   Briefcase,
-  Key,
   Webhook,
-  Code,
-  BarChart3,
-  Bell
+  Code
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -34,15 +31,15 @@ export default function VoicePassLanding() {
   const [activeTab, setActiveTab] = useState('integration');
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-hidden">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-slate-200 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center">
               <Shield className="w-5 h-5 text-white" />
             </div>
-            <span className="text-2xl font-bold text-slate-900">VoicePass</span>
+            <span className="text-xl sm:text-2xl font-bold text-slate-900">VoicePass</span>
           </div>
           
           <ul className="hidden md:flex items-center gap-8">
@@ -64,53 +61,53 @@ export default function VoicePassLanding() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6 bg-gradient-to-br from-slate-50 to-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 trwhanslate-x-1/2" />
+      <section className="pt-24 sm:pt-28 md:pt-32 pb-12 sm:pb-20 px-4 sm:px-6 bg-gradient-to-br from-slate-50 to-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[400px] sm:w-[600px] h-[400px] sm:h-[600px] bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-16 items-center relative z-10">
-          <div>
-            <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
+        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-10 md:gap-16 items-center relative z-10">
+          <div className="min-w-0">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight">
               Send <span className="text-primary">Voice OTP</span><br />
               via API
             </h1>
-            <p className="text-xl text-slate-600 mb-8 leading-relaxed">
+            <p className="text-base sm:text-lg md:text-xl text-slate-600 mb-6 sm:mb-8 leading-relaxed max-w-xl">
               Secure authentication via automated voice calls. 30% cheaper than SMS.
             </p>
-            <div className="flex flex-wrap gap-4 mb-12">
-              <Link href="/signup" className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-all hover:shadow-lg">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mb-8 sm:mb-12">
+              <Link href="/signup" className="px-5 sm:px-6 py-2.5 sm:py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-dark transition-all hover:shadow-lg text-center">
                 Get Started
               </Link>
-              <a href="#docs" className="px-6 py-3 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary-light transition-colors">
+              <a href="#docs" className="px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary-light transition-colors text-center">
                 View Documentation
               </a>
             </div>
-            <div className="grid grid-cols-3 gap-8">
+            <div className="grid grid-cols-3 gap-4 sm:gap-6 md:gap-8">
               <div>
-                <div className="text-4xl font-bold text-primary mb-1">30%</div>
-                <div className="text-sm text-slate-600">Cost Savings</div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary mb-0.5 sm:mb-1">30%</div>
+                <div className="text-xs sm:text-sm text-slate-600">Cost Savings</div>
               </div>
               <div>
-                <div className="text-4xl font-bold text-primary mb-1">95%+</div>
-                <div className="text-sm text-slate-600">Delivery Success</div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary mb-0.5 sm:mb-1">95%+</div>
+                <div className="text-xs sm:text-sm text-slate-600">Delivery Success</div>
               </div>
               <div>
-                <div className="text-4xl font-bold text-primary mb-1">₦3.8</div>
-                <div className="text-sm text-slate-600">Per Authentication</div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-primary mb-0.5 sm:mb-1">₦3.8</div>
+                <div className="text-xs sm:text-sm text-slate-600">Per Auth</div>
               </div>
             </div>
           </div>
           
-          <div className="relative">
-            <div className="bg-gradient-to-br from-primary to-primary-dark rounded-3xl p-12 shadow-2xl">
-              <div className="bg-white rounded-2xl p-8 text-center">
-                <div className="w-20 h-20 bg-primary-light rounded-full mx-auto mb-5 flex items-center justify-center relative">
-                  <Phone className="w-10 h-10 text-primary animate-pulse" />
-                  <div className="absolute inset-0 rounded-full border-4 border-primary/30 animate-ping" />
+          <div className="relative min-w-0">
+            <div className="bg-gradient-to-br from-primary to-primary-dark rounded-2xl sm:rounded-3xl p-6 sm:p-8 md:p-12 shadow-2xl">
+              <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 md:p-8 text-center">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-primary-light rounded-full mx-auto mb-3 sm:mb-5 flex items-center justify-center relative">
+                  <Phone className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 text-primary animate-pulse" />
+                  <div className="absolute inset-0 rounded-full border-2 sm:border-4 border-primary/30 animate-ping" />
                 </div>
-                <div className="font-semibold text-slate-900 mb-2">Incoming OTP Call</div>
-                <div className="text-5xl font-bold text-primary mb-3 tracking-[0.5em]">6294</div>
-                <div className="text-sm text-slate-600">
-                  "Your verification code is six-two-nine-four"
+                <div className="text-sm sm:text-base font-semibold text-slate-900 mb-1 sm:mb-2">Incoming OTP Call</div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2 sm:mb-3 tracking-[0.2em] sm:tracking-[0.4em] md:tracking-[0.5em]">6294</div>
+                <div className="text-xs sm:text-sm text-slate-600 px-1">
+                  &quot;Your verification code is six-two-nine-four&quot;
                 </div>
               </div>
             </div>
@@ -119,10 +116,10 @@ export default function VoicePassLanding() {
       </section>
 
       {/* Problem Section */}
-      <section id="problems" className="py-20 px-6 bg-slate-50">
+      <section id="problems" className="py-12 sm:py-20 px-4 sm:px-6 bg-slate-50">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">The SMS OTP Problem</h2>
+          <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">The SMS OTP Problem</h2>
             <p className="text-lg text-slate-600">
               Why businesses are losing money and customers with traditional SMS authentication
             </p>
@@ -173,28 +170,28 @@ export default function VoicePassLanding() {
       </section>
 
       {/* Comparison Table */}
-      <section id="comparison" className="py-20 px-6 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">SMS OTP vs VoicePass</h2>
+      <section id="comparison" className="py-12 sm:py-20 px-4 sm:px-6 bg-white">
+        <div className="max-w-7xl mx-auto min-w-0">
+          <div className="text-center max-w-3xl mx-auto mb-10 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">SMS OTP vs VoicePass</h2>
             <p className="text-lg text-slate-600">
               See how VoicePass outperforms traditional SMS authentication in every metric
             </p>
           </div>
           
-          <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-slate-200">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg overflow-hidden border border-slate-200">
+            <div className="overflow-x-auto -mx-4 sm:mx-0">
+              <table className="w-full min-w-[480px]">
                 <thead className="bg-gradient-to-r from-primary to-primary-dark">
                   <tr>
-                    <th className="px-6 py-5 text-left text-white font-semibold">Feature</th>
-                    <th className="px-6 py-5 text-left text-white font-semibold">SMS OTP</th>
-                    <th className="px-6 py-5 text-left text-white font-semibold">VoicePass</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-5 text-left text-white font-semibold text-sm sm:text-base">Feature</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-5 text-left text-white font-semibold text-sm sm:text-base">SMS OTP</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-5 text-left text-white font-semibold text-sm sm:text-base">VoicePass</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   <tr className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-slate-900">Cost per Authentication</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 font-semibold text-slate-900 text-sm sm:text-base">Cost per Authentication</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-red-600">
                         <XCircle className="w-5 h-5" />
@@ -390,21 +387,21 @@ export default function VoicePassLanding() {
       </section>
 
       {/* Documentation Section */}
-      <section id="docs" className="py-20 px-6 bg-slate-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">API Documentation</h2>
-            <p className="text-lg text-slate-600">
+      <section id="docs" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 bg-slate-50">
+        <div className="max-w-7xl mx-auto min-w-0">
+          <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-3 sm:mb-4">API Documentation</h2>
+            <p className="text-base sm:text-lg text-slate-600">
               Simple integration in minutes with our REST API
             </p>
           </div>
 
           {/* Tabs */}
-          <div className="flex justify-center mb-12">
-            <div className="bg-white p-2 rounded-xl shadow-sm inline-flex gap-2">
+          <div className="flex justify-center mb-8 sm:mb-12">
+            <div className="bg-white p-1.5 sm:p-2 rounded-xl shadow-sm inline-flex gap-1 sm:gap-2">
               <button
                 onClick={() => setActiveTab('integration')}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base transition-all ${
                   activeTab === 'integration'
                     ? 'bg-primary text-white shadow-md'
                     : 'text-slate-600 hover:text-primary'
@@ -412,67 +409,57 @@ export default function VoicePassLanding() {
               >
                 Integration Guide
               </button>
-              <button
-                onClick={() => setActiveTab('api-reference')}
-                className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                  activeTab === 'api-reference'
-                    ? 'bg-primary text-white shadow-md'
-                    : 'text-slate-600 hover:text-primary'
-                }`}
-              >
-                API Reference
-              </button>
             </div>
           </div>
 
           {/* Integration Guide Tab */}
           {activeTab === 'integration' && (
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-white rounded-2xl p-8 shadow-sm">
-                <div className="space-y-8">
-                  <div className="flex gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold">
+            <div className="grid md:grid-cols-2 gap-6 sm:gap-8">
+              <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 shadow-sm min-w-0">
+                <div className="space-y-6 sm:space-y-8">
+                  <div className="flex gap-3 sm:gap-5">
+                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base">
                       1
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">API Call to Trigger OTP</h3>
-                      <p className="text-slate-600 text-sm leading-relaxed">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">API Call to Trigger OTP</h3>
+                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
                         Make a POST request to our API with the phone number and OTP code. System immediately triggers the voice call and returns a call ID for tracking.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold">
+                  <div className="flex gap-3 sm:gap-5">
+                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base">
                       2
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Automated Voice Call</h3>
-                      <p className="text-slate-600 text-sm leading-relaxed">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Automated Voice Call</h3>
+                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
                         System dials the phone number, OTP is read clearly with digit-by-digit repetition, and call ends automatically after delivery.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold">
+                  <div className="flex gap-3 sm:gap-5">
+                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base">
                       3
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Call Logging & Tracking</h3>
-                      <p className="text-slate-600 text-sm leading-relaxed">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Call Logging & Tracking</h3>
+                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
                         Every call is logged with phone number, call ID, status (answered/failed/busy), duration, and timestamp for full visibility.
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold">
+                  <div className="flex gap-3 sm:gap-5">
+                    <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base">
                       4
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Webhook Notifications</h3>
-                      <p className="text-slate-600 text-sm leading-relaxed">
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Webhook Notifications</h3>
+                      <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
                         Optional real-time webhooks notify your system when call is initiated, answered, failed, or completed for automated workflows.
                       </p>
                     </div>
@@ -481,198 +468,61 @@ export default function VoicePassLanding() {
               </div>
 
               {/* Code Example */}
-              <div className="space-y-6">
-                <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
-                    <span className="text-sm font-semibold text-slate-300">Send OTP Request</span>
-                    <Code className="w-4 h-4 text-slate-400" />
+              <div className="space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
+                <div className="bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg">
+                  <div className="bg-slate-800 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between border-b border-slate-700 min-w-0">
+                    <span className="text-xs sm:text-sm font-semibold text-slate-300 truncate">Send OTP Request</span>
+                    <Code className="w-4 h-4 text-slate-400 flex-shrink-0" />
                   </div>
-                  <div className="p-6">
-                    <pre className="text-sm text-slate-300 leading-relaxed overflow-x-auto">
+                  <div className="p-3 sm:p-4 md:p-6 overflow-x-auto">
+                    <pre className="text-xs sm:text-sm text-slate-300 leading-relaxed overflow-x-auto whitespace-pre">
 {`curl -X POST https://api.voicepass.com/v1/otp/send \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "phone_number": "+2348012345678",
-    "otp_code": "6294",
-    "callback_url": "https://yourapp.com/webhook"
+    "phone": "+234801*****",
+    "otp": "6294"
   }'`}
                     </pre>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
-                    <span className="text-sm font-semibold text-slate-300">API Response</span>
-                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                <div className="bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg">
+                  <div className="bg-slate-800 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between border-b border-slate-700 min-w-0">
+                    <span className="text-xs sm:text-sm font-semibold text-slate-300 truncate">API Response</span>
+                    <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
                   </div>
-                  <div className="p-6">
-                    <pre className="text-sm text-slate-300 leading-relaxed overflow-x-auto">
+                  <div className="p-3 sm:p-4 md:p-6 overflow-x-auto">
+                    <pre className="text-xs sm:text-sm text-slate-300 leading-relaxed overflow-x-auto whitespace-pre">
 {`{
-  "success": true,
-  "call_id": "VPC-20240129-ABC123",
-  "status": "initiated",
-  "timestamp": "2024-01-29T14:30:00Z"
+  "call_id": "call-9f23ab21ess",
+  "status": "queue",
+  "message":"Voice OTP call initiated"
 }`}
                     </pre>
                   </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
-                    <span className="text-sm font-semibold text-slate-300">Webhook Event</span>
-                    <Webhook className="w-4 h-4 text-blue-400" />
+                <div className="bg-slate-900 rounded-xl sm:rounded-2xl overflow-hidden shadow-lg">
+                  <div className="bg-slate-800 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between border-b border-slate-700 min-w-0">
+                    <span className="text-xs sm:text-sm font-semibold text-slate-300 truncate">Webhook Event</span>
+                    <Webhook className="w-4 h-4 text-blue-400 flex-shrink-0" />
                   </div>
-                  <div className="p-6">
-                    <pre className="text-sm text-slate-300 leading-relaxed overflow-x-auto">
+                  <div className="p-3 sm:p-4 md:p-6 overflow-x-auto">
+                    <pre className="text-xs sm:text-sm text-slate-300 leading-relaxed overflow-x-auto whitespace-pre">
 {`{
-  "event": "call.answered",
-  "call_id": "VPC-20240129-ABC123",
+  "call_id": "call-9f23ab21ess",
   "duration": 12,
   "cost": 3.8,
-  "timestamp": "2024-01-29T14:30:12Z"
-}`}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* API Reference Tab */}
-          {activeTab === 'api-reference' && (
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-white rounded-2xl p-8 shadow-sm">
-                <div className="space-y-8">
-                  <div className="flex gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 bg-primary-light rounded-xl flex items-center justify-center">
-                      <Key className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Authentication</h3>
-                      <p className="text-slate-600 text-sm leading-relaxed mb-3">
-                        Include your API key in the Authorization header
-                      </p>
-                      <div className="bg-slate-900 rounded-lg p-3">
-                        <code className="text-xs text-slate-300">Authorization: Bearer YOUR_API_KEY</code>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 bg-primary-light rounded-xl flex items-center justify-center">
-                      <Code className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Request Parameters</h3>
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="font-semibold text-slate-900">phone_number</span>
-                          <span className="text-red-500">*</span>
-                          <p className="text-slate-600">International format with country code</p>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-slate-900">otp_code</span>
-                          <span className="text-red-500">*</span>
-                          <p className="text-slate-600">4-6 digit code to be delivered</p>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-slate-900">callback_url</span>
-                          <p className="text-slate-600">Optional webhook endpoint for events</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 bg-primary-light rounded-xl flex items-center justify-center">
-                      <BarChart3 className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Rate Limiting</h3>
-                      <p className="text-slate-600 text-sm leading-relaxed">
-                        100 requests per minute per API key. Contact sales for higher limits or enterprise plans.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-5">
-                    <div className="flex-shrink-0 w-10 h-10 bg-primary-light rounded-xl flex items-center justify-center">
-                      <Bell className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Webhook Events</h3>
-                      <div className="space-y-1 text-sm">
-                        <div><span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">call.initiated</span> - Call started</div>
-                        <div><span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">call.answered</span> - User picked up</div>
-                        <div><span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">call.failed</span> - Delivery failed</div>
-                        <div><span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">call.completed</span> - Call ended</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* API Reference Code Examples */}
-              <div className="space-y-6">
-                <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
-                    <span className="text-sm font-semibold text-slate-300">Get Call Status</span>
-                    <Code className="w-4 h-4 text-slate-400" />
-                  </div>
-                  <div className="p-6">
-                    <pre className="text-sm text-slate-300 leading-relaxed overflow-x-auto">
-{`curl -X GET https://api.voicepass.com/v1/otp/:call_id \\
-  -H "Authorization: Bearer YOUR_API_KEY"
-
-# Response
-{
-  "call_id": "VPC-20240129-ABC123",
-  "phone_number": "+234801****678",
-  "status": "answered",
-  "duration": 12,
-  "cost": 3.8,
-  "created_at": "2024-01-29T14:30:00Z",
-  "completed_at": "2024-01-29T14:30:12Z"
-}`}
-                    </pre>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
-                    <span className="text-sm font-semibold text-slate-300">Get Account Balance</span>
-                    <Wallet className="w-4 h-4 text-slate-400" />
-                  </div>
-                  <div className="p-6">
-                    <pre className="text-sm text-slate-300 leading-relaxed overflow-x-auto">
-{`curl -X GET https://api.voicepass.com/v1/account/balance \\
-  -H "Authorization: Bearer YOUR_API_KEY"
-
-# Response
-{
-  "balance": 250000.00,
-  "currency": "NGN"
-}`}
-                    </pre>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
-                    <span className="text-sm font-semibold text-slate-300">Get Call Logs</span>
-                    <BarChart3 className="w-4 h-4 text-slate-400" />
-                  </div>
-                  <div className="p-6">
-                    <pre className="text-sm text-slate-300 leading-relaxed overflow-x-auto">
-{`curl -X GET "https://api.voicepass.com/v1/otp/logs?limit=10" \\
-  -H "Authorization: Bearer YOUR_API_KEY"
-
-# Response
-{
-  "logs": [...],
-  "total": 1250,
-  "page": 1
+  "created_at": "2026-02-06T14:30:12Z",
+  "start_time": "2026-02-06T14:30:12Z",
+  "answer_time": "2026-02-06T14:30:12Z",
+  "ring_time": "2026-02-06T14:30:12Z",
+  "end_at": "2026-02-06T14:30:12Z",
+  "phone_number": "+234801*****",
+  "otp": "6294",
+  "gender": "female",
+  "language": "en"
 }`}
                     </pre>
                   </div>
@@ -746,10 +596,10 @@ export default function VoicePassLanding() {
       </section>
 
       {/* CTA Section */}
-      <section id="demo" className="py-20 px-6 bg-gradient-to-r from-primary to-primary-dark text-white">
+      <section id="demo" className="py-12 sm:py-20 px-4 sm:px-6 bg-gradient-to-r from-primary to-primary-dark text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-4">Ready to Save Money and Improve Security?</h2>
-          <p className="text-xl mb-8 text-white/90">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">Ready to Save Money and Improve Security?</h2>
+          <p className="text-base sm:text-lg md:text-xl mb-6 sm:mb-8 text-white/90">
             Join leading banks, fintechs, and enterprises using VoicePass
           </p>
           <div className="flex flex-wrap justify-center gap-4">
@@ -764,7 +614,7 @@ export default function VoicePassLanding() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-white py-16 px-6">
+      <footer className="bg-slate-900 text-white py-12 sm:py-16 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div>
@@ -802,8 +652,7 @@ export default function VoicePassLanding() {
             <div>
               <h4 className="font-semibold mb-4">Contact</h4>
               <ul className="space-y-3 text-slate-400">
-                <li><a href="tel:08069335817" className="hover:text-primary transition-colors">08069335817</a></li>
-                <li><a href="mailto:sales@voicepass.com" className="hover:text-primary transition-colors">sales@voicepass.com</a></li>
+                <li><a href="mailto:voicepass@skurel.com" className="hover:text-primary transition-colors">voicepass@skurel.com</a></li>
                 <li>Skurel Limited</li>
               </ul>
             </div>
