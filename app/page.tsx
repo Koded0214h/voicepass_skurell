@@ -476,7 +476,7 @@ export default function VoicePassLanding() {
                   </div>
                   <div className="p-3 sm:p-4 md:p-6 overflow-x-auto">
                     <pre className="text-xs sm:text-sm text-slate-300 leading-relaxed overflow-x-auto whitespace-pre">
-{`curl -X POST https://api.voicepass.com/v1/otp/send \\
+                      {`curl -X POST https://api.voicepass.skurel.com/send-voice-otp \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{

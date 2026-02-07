@@ -264,22 +264,70 @@ function SecurityTab() {
 }
 
 function APITab({ showApiKey, setShowApiKey }: { showApiKey: boolean; setShowApiKey: (v: boolean) => void }) {
-  const [apiKey, setApiKey] = useState('vp_live_1234567890abcdefghijklmnopqrstuvwxyz');
+  const [apiKey, setApiKey] = useState('');
+  const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    async function fetchApiKey() {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setApiKey(data.api_key ?? '');
+        }
+      } catch (e) {
+        console.error('Failed to fetch API key:', e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchApiKey();
+  }, []);
+
+  const handleCopy = async () => {
+    if (!apiKey) return;
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback for older browsers
+      const input = document.createElement('input');
+      input.value = apiKey;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   const handleRegenerate = async () => {
-    if (!confirm('Are you sure? This will invalidate the current key.')) return;
+    if (!confirm('Are you sure? This will invalidate the current key. Any existing integrations using it will stop working.')) return;
     setRegenerating(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setApiKey('vp_live_' + Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2));
-    setRegenerating(false);
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regenerate_api_key: true }),
+      });
+      if (!res.ok) throw new Error('Failed to regenerate');
+      const data = await res.json();
+      setApiKey(data.api_key ?? '');
+    } catch {
+      console.error('Failed to regenerate API key');
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   return (
     <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6">
       <h3 className="text-lg font-bold text-slate-900 mb-6">API Keys</h3>
-      
+
       <div className="space-y-6">
         <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
           <div className="flex items-start gap-3">
@@ -294,42 +342,54 @@ function APITab({ showApiKey, setShowApiKey }: { showApiKey: boolean; setShowApi
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Production API Key</label>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex-1 relative">
-              <input
-                type={showApiKey ? 'text' : 'password'}
-                value={apiKey}
-                readOnly
-                className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-lg bg-slate-50 font-mono text-sm"
-              />
+          <label className="block text-sm font-medium text-slate-700 mb-2">API Key</label>
+          {loading ? (
+            <div className="py-4 text-slate-500 text-sm">Loading...</div>
+          ) : (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex-1 relative">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKey}
+                  readOnly
+                  placeholder={apiKey ? undefined : 'No API key set'}
+                  className="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-lg bg-slate-50 font-mono text-sm"
+                />
+                <button
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  title={showApiKey ? 'Hide' : 'Show'}
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {showApiKey ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
+              </div>
               <button
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                onClick={handleCopy}
+                disabled={!apiKey}
+                className="px-4 py-2.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                title="Copy to clipboard"
               >
-                <span className="material-symbols-outlined text-[20px]">
-                  {showApiKey ? 'visibility_off' : 'visibility'}
-                </span>
+                <span className="material-symbols-outlined text-[20px]">{copied ? 'check' : 'content_copy'}</span>
+                {copied && <span className="text-sm text-green-600">Copied</span>}
+              </button>
+              <button
+                onClick={handleRegenerate}
+                disabled={regenerating}
+                className="px-4 py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50 flex items-center justify-center"
+                title={apiKey ? 'Regenerate key' : 'Generate key'}
+              >
+                <span className={`material-symbols-outlined text-[20px] ${regenerating ? 'animate-spin' : ''}`}>refresh</span>
               </button>
             </div>
-            <button className="px-4 py-2.5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              <span className="material-symbols-outlined">content_copy</span>
-            </button>
-            <button 
-              onClick={handleRegenerate}
-              disabled={regenerating}
-              className="px-4 py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
-            >
-              <span className={`material-symbols-outlined ${regenerating ? 'animate-spin' : ''}`}>refresh</span>
-            </button>
-          </div>
-          <p className="text-xs text-slate-500 mt-2">Last used: 2 hours ago</p>
+          )}
         </div>
 
         <div className="pt-4 border-t border-slate-100">
           <h4 className="font-semibold text-slate-900 mb-3">Test Mode</h4>
           <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" className="w-5 h-5 rounded border-slate-300 text-[#5da28c] focus:ring-[#5da28c]" />
+            <input type="checkbox" disabled className="w-5 h-5 rounded border-slate-300 text-[#5da28c] focus:ring-[#5da28c]" />
             <div>
               <div className="text-sm font-medium text-slate-900">Enable test mode</div>
               <div className="text-xs text-slate-500">Use test API keys for development</div>
