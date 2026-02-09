@@ -20,6 +20,10 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "VoicePass - Secure Voice OTP",
   description: "Reliable, encrypted voice verification calls for your application",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
