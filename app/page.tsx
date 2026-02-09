@@ -653,6 +653,10 @@ export default function VoicePassLanding() {
             <div>
               <h4 className="font-semibold mb-4">Contact</h4>
               <ul className="space-y-3 text-slate-400">
+
+                <li><a href="https://x.com/skurel_llc?s=21" className="hover:text-primary transition-colors">Skurel on X</a></li>
+                <li><a href="https://www.linkedin.com/company/skurel" className="hover:text-primary transition-colors">Skurel on Linkedin</a></li>
+                <li><a href="https://www.instagram.com/skurel_llc?igsh=MW5teHo4bWkwbjh6bA%3D%3D&utm_source=qr" className="hover:text-primary transition-colors">Skurel on Instagram</a></li>
                 <li><a href="mailto:voicepass@skurel.com" className="hover:text-primary transition-colors">voicepass@skurel.com</a></li>
                 <li>Skurel Limited</li>
               </ul>
