@@ -17,7 +17,6 @@ export default function BillingPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTopUpModal, setShowTopUpModal] = useState(false);
-  const [selectedAmount, setSelectedAmount] = useState('');
 
   const monthlySpend = useMemo(() => {
     const debitsThisMonth = transactions.filter(txn => {
@@ -112,10 +111,7 @@ export default function BillingPage() {
                 <p className="text-slate-500 text-sm font-medium">Current Balance</p>
                 <h3 className="text-3xl font-bold text-slate-900 mt-1">₦{balance.toFixed(2)}</h3>
                 <button
-              onClick={() => {
-                setSelectedAmount('');
-                setShowTopUpModal(true);
-              }}
+              onClick={() => setShowTopUpModal(true)}
                   className="w-full mt-4 flex items-center justify-center gap-2 bg-[#5da28c] hover:bg-[#4a8572] text-white text-sm font-bold py-2.5 px-4 rounded-lg transition-all"
                 >
                   <span className="material-symbols-outlined text-[18px]">add</span>
@@ -152,47 +148,6 @@ export default function BillingPage() {
               <p className="text-slate-500 text-sm font-medium">Avg. Cost per Call</p>
               <h3 className="text-3xl font-bold text-slate-900 mt-1">₦3.80</h3>
               <p className="text-slate-400 text-xs mt-1">For successful calls</p>
-            </div>
-          </div>
-
-          {/* Credit Packages */}
-          <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Quick Top-Up Packages</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[
-                { amount: 100, bonus: 0, popular: false },
-                { amount: 500, bonus: 25, popular: false },
-                { amount: 1000, bonus: 100, popular: true },
-                { amount: 5000, bonus: 750, popular: false },
-              ].map((pkg) => (
-                <button
-                  key={pkg.amount}
-              onClick={() => {
-                setSelectedAmount(pkg.amount.toString());
-                setShowTopUpModal(true);
-              }}
-                  className={`p-4 rounded-lg border-2 transition-all text-left relative ${
-                    pkg.popular
-                      ? 'border-[#5da28c] bg-[#5da28c]/5'
-                      : 'border-slate-200 hover:border-[#5da28c]/50'
-                  }`}
-                >
-                  {pkg.popular && (
-                    <span className="absolute -top-2 left-4 bg-[#5da28c] text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                      Popular
-                    </span>
-                  )}
-                  <div className="text-2xl font-bold text-slate-900">₦{pkg.amount}</div>
-                  {pkg.bonus > 0 && (
-                    <div className="text-xs text-[#5da28c] font-semibold mt-1">
-                      + ₦{pkg.bonus} bonus
-                    </div>
-                  )}
-                  <div className="text-xs text-slate-500 mt-2">
-                    ~{Math.floor(pkg.amount / 3.8)} calls
-                  </div>
-                </button>
-              ))}
             </div>
           </div>
 
@@ -279,115 +234,54 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Top Up Modal */}
+      {/* Bank payment instructions modal (clients cannot self-fund; only admin can fund users) */}
       {showTopUpModal && (
-        <TopUpModal
-          onClose={() => setShowTopUpModal(false)}
-          onSuccess={fetchBillingData}
-          initialAmount={selectedAmount}
-        />
+        <BankPaymentInstructionsModal onClose={() => setShowTopUpModal(false)} />
       )}
     </>
   );
 }
 
-function TopUpModal({ onClose, onSuccess, initialAmount }: { onClose: () => void; onSuccess: () => void; initialAmount?: string }) {
-  const [amount, setAmount] = useState(initialAmount || '');
-  const [loading, setLoading] = useState(false);
-
-  async function handleTopUp(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      // Simulate payment (in production, integrate with Paystack/Flutterwave)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Create credit transaction
-      const res = await fetch('/api/billing/topup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: parseFloat(amount) }),
-      });
-
-      if (res.ok) {
-        onSuccess();
-        onClose();
-      }
-    } catch (error) {
-      console.error('Top up error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+function BankPaymentInstructionsModal({ onClose }: { onClose: () => void }) {
+  const supportEmail = 'secure@skurel.com';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-slate-900">Add Credit</h2>
+      <div className="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-slate-900">Add Credit</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        <form onSubmit={handleTopUp}>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Amount (₦)
-            </label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Enter amount"
-              min="100"
-              step="0.01"
-              required
-              className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none text-lg font-semibold"
-            />
+        <div className="space-y-4">
+          <p className="text-slate-600 text-sm">
+            Pay into the account below, then send your payment proof to the email shown. We’ll credit your wallet after verification.
+          </p>
+          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm">
+            <p className="text-slate-700 font-mono"><span className="text-slate-500">Account:</span> Skurel Limited</p>
+            <p className="text-slate-700 font-mono"><span className="text-slate-500">Bank:</span> Kuda Microfinance Bank</p>
+            <p className="text-slate-700 font-mono"><span className="text-slate-500">No:</span> 3003036636</p>
           </div>
-
-          <div className="bg-slate-50 p-4 rounded-lg mb-6">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-slate-600">Amount</span>
-              <span className="font-semibold text-slate-900">₦{amount || '0.00'}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-slate-600">Estimated Calls</span>
-              <span className="font-semibold text-slate-900">
-                ~{amount ? Math.floor(parseFloat(amount) / 3.8) : 0}
-              </span>
-            </div>
-            <div className="border-t border-slate-200 pt-2 mt-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-900">Total</span>
-                <span className="text-lg font-bold text-[#5da28c]">₦{amount || '0.00'}</span>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-[#eef6f4] border border-[#5da28c]/20">
+            <span className="material-symbols-outlined text-[#5da28c] text-[20px]">mail</span>
+            <p className="text-sm text-slate-700">
+              Send proof to{' '}
+              <a href={`mailto:${supportEmail}`} className="text-[#5da28c] font-bold hover:underline">{supportEmail}</a>
+            </p>
           </div>
+        </div>
 
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 border border-slate-200 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !amount}
-              className="flex-1 px-4 py-3 bg-[#5da28c] text-white rounded-lg hover:bg-[#4a8572] disabled:opacity-50 font-bold"
-            >
-              {loading ? 'Processing...' : 'Add Credit'}
-            </button>
-          </div>
-        </form>
-
-        <p className="text-xs text-slate-500 text-center mt-4">
-          Secure payment powered by Paystack
-        </p>
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full px-4 py-3 bg-[#5da28c] text-white rounded-lg hover:bg-[#4a8572] font-bold"
+          >
+            Got it
+          </button>
+        </div>
       </div>
     </div>
   );
