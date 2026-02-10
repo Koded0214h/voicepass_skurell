@@ -95,7 +95,7 @@ function CallDetailsModal({ call, onClose }: { call: CallLog; onClose: () => voi
                     </div>
                     <div className="space-y-1">
                         <p className="text-slate-500 font-medium">OTP</p>
-                        <p className="text-slate-800 font-mono">{call.otp}</p>
+                        <p className="text-slate-800 font-mono">{call.otp ? (call.otp.length > 4 ? `${call.otp.slice(0, 2)}•••${call.otp.slice(-2)}` : call.otp) : '-'}</p>
                     </div>
                     <div className="space-y-1 col-span-full border-t border-slate-100 pt-4 mt-2">
                         <p className="text-slate-500 font-medium">Timestamps</p>
