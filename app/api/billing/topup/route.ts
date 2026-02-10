@@ -5,9 +5,17 @@ import { getCurrentUser } from '@/lib/auth';
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Only admins can credit wallets via this endpoint (e.g. self). Clients must request funding via bank transfer.
+    if (user.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Wallet funding is by bank transfer only. Send payment proof to secure@skurel.com.' },
+        { status: 403 }
+      );
     }
 
     const body = await req.json();
