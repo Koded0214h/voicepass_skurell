@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { format } from 'date-fns';
+import { formatDate } from '../../../lib/utils';
 import { Eye, X, Trash2, UserPlus, Check } from 'lucide-react';
 import { useUser } from '../../contexts/UserContext';
 
@@ -58,11 +58,11 @@ function UserProfileTab({ user }: { user: User }) {
             </div>
             <div className="space-y-1">
                 <p className="text-slate-500 font-medium">Created At</p>
-                <p className="text-slate-800 text-xs">{format(new Date(user.created_at), 'MMM dd, yyyy HH:mm:ss')}</p>
+                <p className="text-slate-800 text-xs">{formatDate(user.created_at, 'MMM dd, yyyy HH:mm:ss')}</p>
             </div>
             <div className="space-y-1">
                 <p className="text-slate-500 font-medium">Last Login</p>
-                <p className="text-slate-800 text-xs">{user.last_login ? format(new Date(user.last_login), 'MMM dd, yyyy HH:mm:ss') : 'Never'}</p>
+                <p className="text-slate-800 text-xs">{user.last_login ? formatDate(user.last_login, 'MMM dd, yyyy HH:mm:ss') : 'Never'}</p>
             </div>
         </div>
     );
@@ -378,7 +378,7 @@ export default function UsersPage() {
             user.role,
             user.balance.toFixed(2),
             user.is_active ? 'Active' : 'Inactive',
-            format(new Date(user.created_at), 'yyyy-MM-dd HH:mm:ss')
+            formatDate(user.created_at, 'yyyy-MM-dd HH:mm:ss')
         ]);
 
         const csvContent = [
@@ -390,7 +390,7 @@ export default function UsersPage() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
-        link.setAttribute('download', `users_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        link.setAttribute('download', `users_${formatDate(new Date().toISOString(), 'yyyy-MM-dd')}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -612,7 +612,7 @@ export default function UsersPage() {
                                                 ₦{user.balance.toFixed(2)}
                                             </td>
                                             <td className="px-4 py-3 md:px-6 md:py-4 text-slate-600 font-mono text-xs">
-                                                {format(new Date(user.created_at), 'MMM dd, yyyy')}
+                                                {formatDate(user.created_at, 'MMM dd, yyyy')}
                                             </td>
                                             <td className="px-4 py-3 md:px-6 md:py-4">
                                                 <div className="flex items-center gap-2">

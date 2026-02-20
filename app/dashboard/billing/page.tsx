@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { format, isThisMonth } from 'date-fns';
+import { formatDate, parseDate } from '../../../lib/utils';
+import { isThisMonth } from 'date-fns';
 
 interface Transaction {
   id: string | number | null;
@@ -23,8 +24,8 @@ export default function BillingPage() {
       if (txn.type !== 'DEBIT') {
         return false;
       }
-      const txnDate = new Date(txn.created_at);
-      return isThisMonth(txnDate);
+      const txnDate = parseDate(txn.created_at);
+      return txnDate && isThisMonth(txnDate);
     });
 
     const totalAmount = debitsThisMonth.reduce((sum, txn) => sum + (txn.amount || 0), 0);
@@ -61,7 +62,7 @@ export default function BillingPage() {
   function handleExport() {
     const headers = ['Date', 'Description', 'Type', 'Amount', 'Balance After', 'Reference'];
     const rows = transactions.map(t => [
-      format(new Date(t.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      formatDate(t.created_at, 'yyyy-MM-dd HH:mm:ss'),
       t.description,
       t.type,
       (t.amount ?? 0).toFixed(2),
@@ -78,7 +79,7 @@ export default function BillingPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `transactions_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.setAttribute('download', `transactions_${formatDate(new Date().toISOString(), 'yyyy-MM-dd')}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -198,7 +199,7 @@ export default function BillingPage() {
                     transactions.map((txn, index) => (
                       <tr key={txn.id ?? index} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 md:px-6 md:py-4 text-slate-600 font-mono text-xs">
-                          {format(new Date(txn.created_at), 'MMM dd, yyyy HH:mm')}
+                          {formatDate(txn.created_at, 'MMM dd, yyyy HH:mm')}
                         </td>
                         <td className="px-4 py-3 md:px-6 md:py-4 text-slate-900">{txn.description}</td>
                         <td className="px-4 py-3 md:px-6 md:py-4">

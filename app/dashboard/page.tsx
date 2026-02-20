@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { format } from 'date-fns';
+import { formatDate } from '../../lib/utils';
 import Link from 'next/link';
 import { Chart, registerables } from 'chart.js';
 import { useUser } from '../contexts/UserContext';
@@ -431,7 +431,7 @@ export default function DashboardPage() {
                     recentCalls.map((call) => (
                       <tr key={call.id} className="group hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 md:px-6 md:py-4 text-slate-600 font-mono text-xs">
-                          {format(new Date(parseFloat(call.created_at) * 1000), 'MMM dd, HH:mm:ss')}
+                          {formatDate(call.created_at, 'MMM dd, HH:mm:ss')}
                         </td>
                         {currentUser.role === 'admin' && (
                             <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-slate-900">
@@ -535,7 +535,7 @@ function CallDetailsModal({ call, onClose }: { call: RecentCall; onClose: () => 
             </div>
             <div className="p-4 bg-slate-50 rounded-lg">
               <p className="text-xs font-medium text-slate-500 mb-1">Date & Time</p>
-              <p className="text-sm font-bold text-slate-900">{format(new Date(call.created_at), 'MMM dd, yyyy HH:mm')}</p>
+              <p className="text-sm font-bold text-slate-900">{formatDate(call.created_at, 'MMM dd, yyyy HH:mm')}</p>
             </div>
             <div className="p-4 bg-slate-50 rounded-lg">
               <p className="text-xs font-medium text-slate-500 mb-1">Duration</p>

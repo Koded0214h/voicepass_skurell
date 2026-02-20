@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 import { subDays, format } from 'date-fns';
+import { parseDate, formatDate } from '../../../lib/utils';
 
 export async function GET(req: Request) {
   try {
@@ -48,9 +49,13 @@ export async function GET(req: Request) {
     // Peak Hour
     const hourCounts: Record<number, number> = {};
     callLogs.forEach(log => {
-      if (!log.created_at) return;
-      const hour = new Date(log.created_at).getHours();
-      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+      if (log.created_at) {
+        const createdDate = parseDate(log.created_at);
+        if (createdDate) {
+          const hour = createdDate.getHours();
+          hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+        }
+      }
     });
     let peakHour = 0;
     let maxCalls = 0;
@@ -85,9 +90,13 @@ export async function GET(req: Request) {
     // Daily Spend Trend
     const dailySpend: Record<string, number> = {};
     callLogs.forEach(log => {
-      if (!log.created_at) return;
-      const day = format(new Date(log.created_at), 'EEE');
-      dailySpend[day] = (dailySpend[day] || 0) + (log.cost || 0);
+      if (log.created_at) {
+        const createdDate = parseDate(log.created_at);
+        if (createdDate) {
+          const day = format(createdDate, 'EEE');
+          dailySpend[day] = (dailySpend[day] || 0) + (log.cost || 0);
+        }
+      }
     });
     const dailySpendTrend = Object.entries(dailySpend).map(([day, amount]) => ({
       day,
@@ -97,12 +106,16 @@ export async function GET(req: Request) {
     // Top Performing Hours
     const hourStats: Record<number, { total: number, success: number }> = {};
     callLogs.forEach(log => {
-      if (!log.created_at) return;
-      const hour = new Date(log.created_at).getHours();
-      if (!hourStats[hour]) hourStats[hour] = { total: 0, success: 0 };
-      hourStats[hour].total++;
-      if (log.status === 'COMPLETED' || log.status === 'ANSWERED') {
-        hourStats[hour].success++;
+      if (log.created_at) {
+        const createdDate = parseDate(log.created_at);
+        if (createdDate) {
+          const hour = createdDate.getHours();
+          if (!hourStats[hour]) hourStats[hour] = { total: 0, success: 0 };
+          hourStats[hour].total++;
+          if (log.status === 'COMPLETED' || log.status === 'ANSWERED') {
+            hourStats[hour].success++;
+          }
+        }
       }
     });
     
@@ -118,13 +131,17 @@ export async function GET(req: Request) {
     // Performance Insights
     const dayStats: Record<string, { total: number; success: number }> = {};
     callLogs.forEach(log => {
-      if (!log.created_at) return;
-      const day = format(new Date(log.created_at), 'EEE');
-      if (!dayStats[day]) dayStats[day] = { total: 0, success: 0 };
-      dayStats[day].total++;
-      // @ts-ignore
-      if (log.status === 'COMPLETED' || log.status === 'ANSWERED') {
-        dayStats[day].success++;
+      if (log.created_at) {
+        const createdDate = parseDate(log.created_at);
+        if (createdDate) {
+          const day = format(createdDate, 'EEE');
+          if (!dayStats[day]) dayStats[day] = { total: 0, success: 0 };
+          dayStats[day].total++;
+          // @ts-ignore
+          if (log.status === 'COMPLETED' || log.status === 'ANSWERED') {
+            dayStats[day].success++;
+          }
+        }
       }
     });
 
@@ -153,9 +170,13 @@ export async function GET(req: Request) {
         const hourMap = new Map();
         for(let i=0; i<24; i++) hourMap.set(i, 0);
         callLogs.forEach(log => {
-            if (!log.created_at) return;
-            const hour = new Date(log.created_at).getHours();
-            hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
+            if (log.created_at) {
+                const createdDate = parseDate(log.created_at);
+                if (createdDate) {
+                    const hour = createdDate.getHours();
+                    hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
+                }
+            }
         });
         volumeTrend = Array.from(hourMap.entries()).map(([label, value]) => ({ label: `${label}:00`, value }));
     } else {
@@ -170,13 +191,16 @@ export async function GET(req: Request) {
         }
 
         callLogs.forEach(log => {
-             if (!log.created_at) return;
-             const day = format(new Date(log.created_at), 'MMM dd');
-             if (dailyCounts[day] !== undefined) {
-                 dailyCounts[day]++;
+             if (log.created_at) {
+                 const createdDate = parseDate(log.created_at);
+                 if (createdDate) {
+                     const day = format(createdDate, 'MMM dd');
+                     if (dailyCounts[day] !== undefined) {
+                         dailyCounts[day]++;
+                     }
+                 }
              }
-        });
-        volumeTrend = Object.entries(dailyCounts).map(([label, value]) => ({ label, value }));
+        });        volumeTrend = Object.entries(dailyCounts).map(([label, value]) => ({ label, value }));
     }
 
     // Daily Performance (Success vs Failed)
@@ -191,11 +215,15 @@ export async function GET(req: Request) {
     }
 
     callLogs.forEach(log => {
-        if (!log.created_at) return;
-        const day = format(new Date(log.created_at), 'MMM dd');
-        if (dailyPerfMap[day]) {
-            if (log.status === 'COMPLETED' || log.status === 'ANSWERED') dailyPerfMap[day].success++;
-            else if (log.status === 'FAILED') dailyPerfMap[day].failed++;
+        if (log.created_at) {
+            const createdDate = parseDate(log.created_at);
+            if (createdDate) {
+                const day = format(createdDate, 'MMM dd');
+                if (dailyPerfMap[day]) {
+                    if (log.status === 'COMPLETED' || log.status === 'ANSWERED') dailyPerfMap[day].success++;
+                    else if (log.status === 'FAILED') dailyPerfMap[day].failed++;
+                }
+            }
         }
     });
     const dailyPerformance = Object.entries(dailyPerfMap).map(([day, stats]) => ({ day, ...stats }));

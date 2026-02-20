@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { format } from 'date-fns';
+import { formatDate } from '../../../lib/utils';
 import { Eye, X, Trash2 } from 'lucide-react';
 import { useUser } from '../../contexts/UserContext';
 
@@ -26,14 +26,7 @@ interface CallLog {
     } | null;
 }
 
-function formatDate(value: string | null | undefined, fmt = 'MMM dd, yyyy HH:mm:ss'): string {
-    if (value == null || value === '') return '-';
-    const num = Number(value);
-    const d = !Number.isNaN(num) && num > 0 && num < 1e12
-        ? new Date(num * 1000)
-        : new Date(value);
-    return Number.isNaN(d.getTime()) ? '-' : format(d, fmt);
-}
+
 
 const statusColorMap: { [key: string]: { background: string; text: string; border: string; dot: string } } = {
     answered: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' },
@@ -246,7 +239,7 @@ export default function CallLogsPage() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.setAttribute('href', url);
-        link.setAttribute('download', `call_logs_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        link.setAttribute('download', `call_logs_${formatDate(new Date().toISOString(), 'yyyy-MM-dd')}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
