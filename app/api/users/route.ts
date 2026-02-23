@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
                     email: true,
                     phone: true,
                     role: true,
+                    user_type: true,
                     balance: true,
                     created_at: true,
                     updated_at: true,
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
             email: user.email || '',
             phone_number: user.phone || '',
             role: user.role || 'user',
+            user_type: user.user_type || 'prepaid',
             balance: user.balance || 0,
             is_active: user.is_active,
             created_at: user.created_at?.toISOString() || new Date().toISOString(),
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { email, password, name, company, phone_number, role } = await req.json();
+        const { email, password, name, company, phone_number, role, user_type } = await req.json();
 
         // Check if user exists
         const existing = await db.vp_user.findUnique({
@@ -116,6 +118,7 @@ export async function POST(req: NextRequest) {
             company,
             phone: phone_number,
             role: role || 'user',
+            user_type: user_type || 'prepaid',
             is_active: true,
             api_key: generateApiKey(),
           },
@@ -128,6 +131,7 @@ export async function POST(req: NextRequest) {
             email: user.email,
             name: user.name,
             role: user.role,
+            user_type: user.user_type,
             company: user.company,
             phone_number: user.phone,
           },

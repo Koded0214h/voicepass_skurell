@@ -16,6 +16,8 @@ export async function GET(req: Request) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const view = searchParams.get('view');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
     
     const isAdminView = user.role === 'admin' && view === 'admin';
 
@@ -41,6 +43,24 @@ export async function GET(req: Request) {
       where.status = status;
     }
 
+    // Date filtering
+    // Since created_at in schema is String? @db.VarChar(100), we need to be careful.
+    // However, if we can assume it's ISO format or similar, we can use it.
+    if (startDate || endDate) {
+        where.created_at = {};
+        if (startDate) {
+            // Prisma might struggle with String range if not ISO. 
+            // If they are stored as ISO strings, it works.
+            where.created_at.gte = startDate;
+        }
+        if (endDate) {
+            // Add time to end date to include the full day
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            where.created_at.lte = end.toISOString();
+        }
+    }
+
     // Fetch logs
     const logs = await db.vp_call_log.findMany({
       where,
@@ -49,6 +69,7 @@ export async function GET(req: Request) {
           select: {
             name: true,
             email: true,
+            user_type: true,
           }
         }
       },
@@ -66,6 +87,9 @@ export async function GET(req: Request) {
       );
     }
 
+    // Calculate total cost for the current selection (useful for billing)
+    const totalCost = filteredLogs.reduce((acc, log) => acc + (log.cost || 0), 0);
+
     // Pagination
     const total = filteredLogs.length;
     const startIndex = (page - 1) * limit;
@@ -74,6 +98,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       logs: paginatedLogs,
+      totalCost,
       pagination: {
         total,
         pages: Math.ceil(total / limit),

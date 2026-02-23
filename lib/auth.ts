@@ -11,6 +11,7 @@ export interface SessionUser {
   company?: string;
   phone?: string;
   role: string;
+  user_type?: string;
   apiKey?: string;
 }
 

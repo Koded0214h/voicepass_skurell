@@ -9,6 +9,7 @@ interface User {
     email: string;
     phone_number: string;
     role: string;
+    user_type: string;
     balance: number;
     created_at: string;
     last_login?: string;
@@ -22,7 +23,41 @@ const roleColorMap: { [key: string]: { background: string; text: string; border:
     user: { background: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', dot: 'bg-blue-500' },
 };
 
-function UserProfileTab({ user }: { user: User }) {
+const typeColorMap: { [key: string]: { background: string; text: string; border: string; dot: string } } = {
+    prepaid: { background: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', dot: 'bg-emerald-500' },
+    postpaid: { background: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-100', dot: 'bg-orange-500' },
+};
+
+function UserProfileTab({ user, onDataChange }: { user: User, onDataChange: () => void }) {
+    const [updating, setUpdating] = useState(false);
+
+    async function toggleUserType() {
+        if (updating) return;
+        const newType = user.user_type === 'prepaid' ? 'postpaid' : 'prepaid';
+        if (!confirm(`Are you sure you want to change this user to ${newType}?`)) return;
+
+        setUpdating(true);
+        try {
+            const res = await fetch(`/api/users/${user.id}/type`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_type: newType }),
+            });
+
+            if (res.ok) {
+                onDataChange();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to update user type');
+            }
+        } catch (error) {
+            console.error('Error updating user type:', error);
+            alert('Failed to update user type');
+        } finally {
+            setUpdating(false);
+        }
+    }
+
     return (
         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
             <div className="space-y-1">
@@ -44,6 +79,19 @@ function UserProfileTab({ user }: { user: User }) {
             <div className="space-y-1">
                 <p className="text-slate-500 font-medium">Role</p>
                 <p className="text-slate-800 capitalize">{user.role}</p>
+            </div>
+            <div className="space-y-1">
+                <p className="text-slate-500 font-medium">Type</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-slate-800 capitalize">{user.user_type || 'prepaid'}</p>
+                    <button 
+                        onClick={toggleUserType}
+                        disabled={updating}
+                        className="text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded border border-slate-200 transition-colors disabled:opacity-50"
+                    >
+                        {updating ? 'Updating...' : `Switch to ${user.user_type === 'prepaid' ? 'postpaid' : 'prepaid'}`}
+                    </button>
+                </div>
             </div>
             <div className="space-y-1">
                 <p className="text-slate-500 font-medium">Balance</p>
@@ -219,7 +267,7 @@ function UserDetailsModal({ user, onClose, onDataChange }: { user: User; onClose
                     </div>
 
                     <div>
-                        {activeTab === 'profile' && <UserProfileTab user={user} />}
+                        {activeTab === 'profile' && <UserProfileTab user={user} onDataChange={onDataChange} />}
                         {activeTab === 'funding' && <UserFundingTab user={user} onSuccess={() => {
                             onDataChange();
                             // No need to switch tab, admin might want to perform another funding operation
@@ -244,7 +292,8 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void, onSucces
         password: '',
         company: '',
         phone_number: '',
-        role: 'user'
+        role: 'user',
+        user_type: 'prepaid'
     });
     const [loading, setLoading] = useState(false);
 
@@ -296,7 +345,7 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void, onSucces
                         <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
                         <input type="email" required className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
                             <input type="tel" className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.phone_number} onChange={e => setFormData({...formData, phone_number: e.target.value})} />
@@ -306,6 +355,13 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void, onSucces
                             <select className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
                                 <option value="user">User</option>
                                 <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+                            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.user_type} onChange={e => setFormData({...formData, user_type: e.target.value})}>
+                                <option value="prepaid">Prepaid</option>
+                                <option value="postpaid">Postpaid</option>
                             </select>
                         </div>
                     </div>
@@ -369,13 +425,14 @@ export default function UsersPage() {
     const totalPages = Math.ceil(total / 20);
 
     function handleExport() {
-        const headers = ['Name', 'Email', 'Company', 'Phone Number', 'Role', 'Balance', 'Status', 'Created At'];
+        const headers = ['Name', 'Email', 'Company', 'Phone Number', 'Role', 'Type', 'Balance', 'Status', 'Created At'];
         const rows = users.map(user => [
             user.name || '-',
             user.email,
             user.company || '-',
             user.phone_number || '-',
             user.role,
+            user.user_type || 'prepaid',
             user.balance.toFixed(2),
             user.is_active ? 'Active' : 'Inactive',
             formatDate(user.created_at, 'yyyy-MM-dd HH:mm:ss')
@@ -557,6 +614,7 @@ export default function UsersPage() {
                                     <th className="px-4 py-3 md:px-6 md:py-4">Email</th>
                                     <th className="px-4 py-3 md:px-6 md:py-4">Company</th>
                                     <th className="px-4 py-3 md:px-6 md:py-4">Role</th>
+                                    <th className="px-4 py-3 md:px-6 md:py-4">Type</th>
                                     <th className="px-4 py-3 md:px-6 md:py-4">Status</th>
                                     <th className="px-4 py-3 md:px-6 md:py-4 text-right">Balance</th>
                                     <th className="px-4 py-3 md:px-6 md:py-4">Joined</th>
@@ -566,7 +624,7 @@ export default function UsersPage() {
                             <tbody className="divide-y divide-slate-50">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={8} className="px-4 py-12 md:px-6 text-center">
+                                        <td colSpan={9} className="px-4 py-12 md:px-6 text-center">
                                             <div className="flex items-center justify-center gap-2">
                                                 <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce"></div>
                                                 <div className="w-2 h-2 bg-[#5da28c] rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -576,7 +634,7 @@ export default function UsersPage() {
                                     </tr>
                                 ) : filteredUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="px-4 py-12 md:px-6 text-center">
+                                        <td colSpan={9} className="px-4 py-12 md:px-6 text-center">
                                             <div className="flex flex-col items-center gap-3">
                                                 <span className="material-symbols-outlined text-6xl text-slate-300">group</span>
                                                 <p className="text-slate-500 font-medium">No users found</p>
@@ -600,6 +658,12 @@ export default function UsersPage() {
                                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${roleColorMap[user.role]?.background || 'bg-gray-100'} ${roleColorMap[user.role]?.text || 'text-gray-700'} ${roleColorMap[user.role]?.border || 'border-gray-200'}`}>
                                                     <span className={`size-1.5 rounded-full ${roleColorMap[user.role]?.dot || 'bg-gray-500'}`}></span>
                                                     <span className="capitalize">{user.role}</span>
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 md:px-6 md:py-4">
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${typeColorMap[user.user_type || 'prepaid']?.background || 'bg-gray-100'} ${typeColorMap[user.user_type || 'prepaid']?.text || 'text-gray-700'} ${typeColorMap[user.user_type || 'prepaid']?.border || 'border-gray-200'}`}>
+                                                    <span className={`size-1.5 rounded-full ${typeColorMap[user.user_type || 'prepaid']?.dot || 'bg-gray-500'}`}></span>
+                                                    <span className="capitalize">{user.user_type || 'prepaid'}</span>
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 md:px-6 md:py-4">

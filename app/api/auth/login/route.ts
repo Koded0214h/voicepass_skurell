@@ -38,6 +38,7 @@ export async function POST(req: Request) {
       email: user.email!,
       name: user.name || '',
       role: user.role || 'user',
+      user_type: user.user_type || 'prepaid',
       company: user.company || '',
       phone: user.phone || '',
     });

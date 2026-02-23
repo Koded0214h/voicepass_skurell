@@ -23,10 +23,9 @@ interface CallLog {
     user: {
         name: string | null;
         email: string | null;
+        user_type?: string;
     } | null;
 }
-
-
 
 const statusColorMap: { [key: string]: { background: string; text: string; border: string; dot: string } } = {
     answered: { background: 'bg-[#5da28c]/10', text: 'text-[#4a8572]', border: 'border-[#5da28c]/20', dot: 'bg-[#5da28c]' },
@@ -137,9 +136,12 @@ export default function CallLogsPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
+    const [totalCost, setTotalCost] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [selectedCall, setSelectedCall] = useState<CallLog | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const user = useUser();
@@ -155,18 +157,24 @@ export default function CallLogsPage() {
         try {
             setLoading(true);
             const isAdminView = user.role === 'admin';
-            const adminQuery = isAdminView ? '&view=admin' : '';
-
+            
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: '20',
             });
 
+            if (isAdminView) {
+                params.append('view', 'admin');
+            }
+
             if (statusFilter !== 'ALL') {
                 params.append('status', statusFilter.replace(/ /g, '_').toUpperCase());
             }
 
-            const res = await fetch(`/api/calls/logs?${params}${adminQuery}`, { cache: 'no-store' });
+            if (startDate) params.append('startDate', new Date(startDate).toISOString());
+            if (endDate) params.append('endDate', new Date(endDate).toISOString());
+
+            const res = await fetch(`/api/calls/logs?${params.toString()}`, { cache: 'no-store' });
             const data = await res.json();
 
             const transformedLogs = (data.logs || []).map((log: CallLog) => {
@@ -182,12 +190,13 @@ export default function CallLogsPage() {
 
             setCalls(transformedLogs);
             setTotal(data.pagination?.total || 0);
+            setTotalCost(data.totalCost || 0);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching calls:', error);
             setLoading(false);
         }
-    }, [page, statusFilter, user, refreshKey]);
+    }, [page, statusFilter, user, refreshKey, startDate, endDate]);
 
     useEffect(() => {
         fetchCalls();
@@ -277,7 +286,7 @@ export default function CallLogsPage() {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6">
+                <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6 space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {/* Search */}
                         <div className={user.role === 'admin' ? "sm:col-span-1" : "sm:col-span-2 md:col-span-2"}>
@@ -334,9 +343,50 @@ export default function CallLogsPage() {
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {/* Start Date */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                Start Date
+                            </label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
+                            />
+                        </div>
+
+                        {/* End Date */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                End Date
+                            </label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
+                            />
+                        </div>
+
+                        {/* Summary Info (Admin only) */}
+                        {user.role === 'admin' && (
+                            <div className="bg-slate-50 rounded-lg p-3 flex flex-col justify-center border border-slate-100">
+                                <div className="flex justify-between items-center text-xs text-slate-500 mb-1">
+                                    <span>Filtered Total</span>
+                                    <span className="font-mono">{total} calls</span>
+                                </div>
+                                <div className="text-lg font-bold text-[#5da28c]">
+                                    ₦{totalCost.toFixed(2)}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Active Filters */}
-                    {(searchTerm || statusFilter !== 'ALL' || userSearchTerm) && (
-                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+                    {(searchTerm || statusFilter !== 'ALL' || userSearchTerm || startDate || endDate) && (
+                        <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
                             <span className="text-sm text-slate-600">Active filters:</span>
                             {searchTerm && (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
@@ -362,11 +412,29 @@ export default function CallLogsPage() {
                                     </button>
                                 </span>
                             )}
+                            {startDate && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
+                                    From: {startDate}
+                                    <button onClick={() => setStartDate('')} className="hover:text-slate-900">
+                                        <span className="material-symbols-outlined text-[16px]">close</span>
+                                    </button>
+                                </span>
+                            )}
+                            {endDate && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
+                                    To: {endDate}
+                                    <button onClick={() => setEndDate('')} className="hover:text-slate-900">
+                                        <span className="material-symbols-outlined text-[16px]">close</span>
+                                    </button>
+                                </span>
+                            )}
                             <button
                                 onClick={() => {
                                     setSearchTerm('');
                                     setStatusFilter('ALL');
                                     setUserSearchTerm('');
+                                    setStartDate('');
+                                    setEndDate('');
                                 }}
                                 className="text-xs text-[#5da28c] hover:text-[#4a8572] font-semibold ml-auto"
                             >

@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
         email,
         password: hashedPassword,
         name,
-        role: 'client',
+        role: 'user', // Changed from client to user as per schema.prisma default
+        user_type: 'prepaid',
         is_active: true,
         api_key: generateApiKey(),
       },
@@ -65,7 +66,8 @@ export async function POST(req: NextRequest) {
       id: user.id.toString(),
       email: user.email!,
       name: user.name || '',
-      role: user.role || '',
+      role: user.role || 'user',
+      user_type: user.user_type || 'prepaid',
       company: user.company || '',
       phone: user.phone || '',
     });
@@ -79,6 +81,7 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
+        user_type: user.user_type,
         company: user.company || '',
         phone: user.phone || '',
       },
