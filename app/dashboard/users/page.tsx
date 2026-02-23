@@ -84,7 +84,7 @@ function UserProfileTab({ user, onDataChange }: { user: User, onDataChange: () =
                 <p className="text-slate-500 font-medium">Type</p>
                 <div className="flex items-center gap-2">
                     <p className="text-slate-800 capitalize">{user.user_type || 'prepaid'}</p>
-                    <button 
+                    <button
                         onClick={toggleUserType}
                         disabled={updating}
                         className="text-[10px] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded border border-slate-200 transition-colors disabled:opacity-50"
@@ -138,6 +138,81 @@ function SuccessModal({ message, onClose }: { message: string, onClose: () => vo
     );
 }
 
+function UserCallsTab({ user }: { user: User }) {
+    const [calls, setCalls] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [statusFilter, setStatusFilter] = useState('ALL');
+
+    const fetchUserCalls = useCallback(async () => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams({
+                userId: user.id.toString(),
+                limit: '50'
+            });
+            if (statusFilter !== 'ALL') params.append('status', statusFilter);
+
+            const res = await fetch(`/api/calls/logs?${params.toString()}`);
+            const data = await res.json();
+            setCalls(data.logs || []);
+        } catch (error) {
+            console.error('Error fetching user calls:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [user.id, statusFilter]);
+
+    useEffect(() => {
+        fetchUserCalls();
+    }, [fetchUserCalls]);
+
+    return (
+        <div className="p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                <h4 className="font-bold text-slate-900">User Call Logs</h4>
+            </div>
+
+            <div className="max-h-[300px] overflow-y-auto rounded-lg border border-slate-100">
+                <table className="w-full text-left text-xs">
+                    <thead className="bg-[#f9fafa] sticky top-0 text-slate-500 font-medium border-b border-slate-100">
+                        <tr>
+                            <th className="px-4 py-2">Time</th>
+                            <th className="px-4 py-2">Number</th>
+                            <th className="px-4 py-2">Duration</th>
+                            <th className="px-4 py-2">Status</th>
+                            <th className="px-4 py-2 text-right">Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                        {loading ? (
+                            <tr><td colSpan={5} className="text-center py-8">Loading...</td></tr>
+                        ) : calls.length === 0 ? (
+                            <tr><td colSpan={5} className="text-center py-8 text-slate-400">No calls found</td></tr>
+                        ) : (
+                            calls.map((call: any) => (
+                                <tr key={call.id}>
+                                    <td className="px-4 py-2 font-mono text-[10px]">{formatDate(call.created_at, 'MMM dd, HH:mm')}</td>
+                                    <td className="px-4 py-2">{call.phone_number}</td>
+                                    <td className="px-4 py-2">{call.duration ? `${call.duration}s` : '-'}</td>
+                                    <td className="px-4 py-2">
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] uppercase font-bold ${(call.status || '').toLowerCase().includes('answered') || (call.status || '').toLowerCase().includes('completed')
+                                            ? 'bg-emerald-50 text-emerald-600'
+                                            : 'bg-slate-100 text-slate-600'
+                                            }`}>
+                                            {call.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono">₦{call.cost?.toFixed(2)}</td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
 function UserFundingTab({ user, onSuccess }: { user: User; onSuccess: () => void }) {
     const [amount, setAmount] = useState('');
     const [loading, setLoading] = useState(false);
@@ -179,7 +254,7 @@ function UserFundingTab({ user, onSuccess }: { user: User; onSuccess: () => void
             setAmount('');
         }
     }
-    
+
     return (
         <>
             <div className="p-6">
@@ -247,7 +322,7 @@ function UserDetailsModal({ user, onClose, onDataChange }: { user: User; onClose
                         <X size={20} className="text-slate-500" />
                     </button>
                 </div>
-                
+
                 <div>
                     <div className="border-b border-slate-200">
                         <nav className="flex gap-4 px-6" aria-label="Tabs">
@@ -263,6 +338,12 @@ function UserDetailsModal({ user, onClose, onDataChange }: { user: User; onClose
                             >
                                 Funding
                             </button>
+                            <button
+                                onClick={() => setActiveTab('calls')}
+                                className={`shrink-0 border-b-2 px-1 py-3 text-sm font-medium ${activeTab === 'calls' ? 'border-[#5da28c] text-[#5da28c]' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Calls
+                            </button>
                         </nav>
                     </div>
 
@@ -270,8 +351,8 @@ function UserDetailsModal({ user, onClose, onDataChange }: { user: User; onClose
                         {activeTab === 'profile' && <UserProfileTab user={user} onDataChange={onDataChange} />}
                         {activeTab === 'funding' && <UserFundingTab user={user} onSuccess={() => {
                             onDataChange();
-                            // No need to switch tab, admin might want to perform another funding operation
                         }} />}
+                        {activeTab === 'calls' && <UserCallsTab user={user} />}
                     </div>
                 </div>
 
@@ -306,7 +387,7 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void, onSucces
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
-            
+
             if (res.ok) {
                 onSuccess();
             } else {
@@ -334,32 +415,32 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void, onSucces
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Name</label>
-                            <input type="text" required className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                            <input type="text" required className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
-                            <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} />
+                            <input type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.company} onChange={e => setFormData({ ...formData, company: e.target.value })} />
                         </div>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                        <input type="email" required className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                        <input type="email" required className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Phone Number</label>
-                            <input type="tel" className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.phone_number} onChange={e => setFormData({...formData, phone_number: e.target.value})} />
+                            <input type="tel" className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.phone_number} onChange={e => setFormData({ ...formData, phone_number: e.target.value })} />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
-                            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
+                            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
                                 <option value="user">User</option>
                                 <option value="admin">Admin</option>
                             </select>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
-                            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.user_type} onChange={e => setFormData({...formData, user_type: e.target.value})}>
+                            <select className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.user_type} onChange={e => setFormData({ ...formData, user_type: e.target.value })}>
                                 <option value="prepaid">Prepaid</option>
                                 <option value="postpaid">Postpaid</option>
                             </select>
@@ -367,7 +448,7 @@ function CreateUserModal({ onClose, onSuccess }: { onClose: () => void, onSucces
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                        <input type="password" required className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                        <input type="password" required className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
                     </div>
                     <div className="pt-4"><button type="submit" disabled={loading} className="w-full px-4 py-2.5 bg-[#5da28c] text-white rounded-lg hover:bg-[#4a8572] font-bold disabled:opacity-50">{loading ? 'Creating...' : 'Create User'}</button></div>
                 </form>
@@ -381,8 +462,14 @@ export default function UsersPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalBalance, setTotalBalance] = useState(0);
+    const [totalSpent, setTotalSpent] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('ALL');
+    const [userTypeFilter, setUserTypeFilter] = useState('ALL');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [companyFilter, setCompanyFilter] = useState('');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -396,33 +483,34 @@ export default function UsersPage() {
                 limit: '20',
             });
 
-            if (roleFilter !== 'ALL') {
-                params.append('role', roleFilter);
-            }
+            if (searchTerm) params.append('search', searchTerm);
+            if (companyFilter) params.append('company', companyFilter);
+            if (roleFilter !== 'ALL') params.append('role', roleFilter);
+            if (userTypeFilter !== 'ALL') params.append('userType', userTypeFilter);
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
 
-            const res = await fetch(`/api/users?${params}`, { cache: 'no-store' });
+            const res = await fetch(`/api/users?${params.toString()}`, { cache: 'no-store' });
             const data = await res.json();
 
             setUsers(data.users || []);
             setTotal(data.pagination?.total || 0);
+            setTotalPages(data.pagination?.totalPages || 1);
+            setTotalBalance(data.summary?.totalBalance || 0);
+            setTotalSpent(data.summary?.totalSpent || 0);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching users:', error);
             setLoading(false);
         }
-    }, [page, roleFilter]);
+    }, [page, searchTerm, companyFilter, roleFilter, userTypeFilter, startDate, endDate]);
 
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
 
-    const filteredUsers = users.filter(user =>
-        ((user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (!companyFilter || (user.company && user.company.toLowerCase().includes(companyFilter.toLowerCase())))
-    );
-
-    const totalPages = Math.ceil(total / 20);
+    // Client-side filtering is removed as it's now handled by the API
+    const filteredUsers = users;
 
     function handleExport() {
         const headers = ['Name', 'Email', 'Company', 'Phone Number', 'Role', 'Type', 'Balance', 'Status', 'Created At'];
@@ -458,7 +546,7 @@ export default function UsersPage() {
 
     async function handleDeleteUser(userId: number) {
         if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
-        
+
         try {
             const res = await fetch(`/api/users/${userId}`, {
                 method: 'DELETE'
@@ -504,11 +592,32 @@ export default function UsersPage() {
                     </div>
                 </div>
 
+                {/* Summary Stats */}
+                {!loading && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Users</p>
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-2xl font-bold text-slate-900">{total}</h3>
+                                <span className="text-xs text-slate-400 font-medium">Matching filters</span>
+                            </div>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Balance</p>
+                            <h3 className="text-2xl font-bold text-[#5da28c]">₦{totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Costs (Spent)</p>
+                            <h3 className="text-2xl font-bold text-blue-600">₦{totalSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                        </div>
+                    </div>
+                )}
+
                 {/* Filters */}
                 <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] p-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* Search */}
-                        <div className="md:col-span-1">
+                        <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-slate-700 mb-2">
                                 Search
                             </label>
@@ -520,14 +629,17 @@ export default function UsersPage() {
                                     type="text"
                                     placeholder="Search by name or email..."
                                     value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value);
+                                        setPage(1);
+                                    }}
                                     className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
                                 />
                             </div>
                         </div>
 
                         {/* Company Filter */}
-                        <div className="md:col-span-1">
+                        <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-slate-700 mb-2">
                                 Company
                             </label>
@@ -539,7 +651,10 @@ export default function UsersPage() {
                                     type="text"
                                     placeholder="Search by company..."
                                     value={companyFilter}
-                                    onChange={(e) => setCompanyFilter(e.target.value)}
+                                    onChange={(e) => {
+                                        setCompanyFilter(e.target.value);
+                                        setPage(1);
+                                    }}
                                     className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
                                 />
                             </div>
@@ -552,7 +667,10 @@ export default function UsersPage() {
                             </label>
                             <select
                                 value={roleFilter}
-                                onChange={(e) => setRoleFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setRoleFilter(e.target.value);
+                                    setPage(1);
+                                }}
                                 className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
                             >
                                 <option value="ALL">All Roles</option>
@@ -560,11 +678,62 @@ export default function UsersPage() {
                                 <option value="user">User</option>
                             </select>
                         </div>
+
+                        {/* User Type Filter */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                User Type
+                            </label>
+                            <select
+                                value={userTypeFilter}
+                                onChange={(e) => {
+                                    setUserTypeFilter(e.target.value);
+                                    setPage(1);
+                                }}
+                                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
+                            >
+                                <option value="ALL">All Types</option>
+                                <option value="prepaid">Prepaid</option>
+                                <option value="postpaid">Postpaid</option>
+                            </select>
+                        </div>
+
+                        {/* Start Date */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                Joined From
+                            </label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => {
+                                    setStartDate(e.target.value);
+                                    setPage(1);
+                                }}
+                                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
+                            />
+                        </div>
+
+                        {/* End Date */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                Joined To
+                            </label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => {
+                                    setEndDate(e.target.value);
+                                    setPage(1);
+                                }}
+                                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#5da28c] focus:border-[#5da28c] outline-none transition-all"
+                            />
+                        </div>
                     </div>
 
                     {/* Active Filters */}
-                    {(searchTerm || roleFilter !== 'ALL' || companyFilter) && (
-                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+                    {(searchTerm || roleFilter !== 'ALL' || companyFilter || userTypeFilter !== 'ALL' || startDate || endDate) && (
+                        <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
                             <span className="text-sm text-slate-600">Active filters:</span>
                             {searchTerm && (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
@@ -590,13 +759,35 @@ export default function UsersPage() {
                                     </button>
                                 </span>
                             )}
+                            {userTypeFilter !== 'ALL' && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
+                                    Type: {userTypeFilter}
+                                    <button onClick={() => { setUserTypeFilter('ALL'); setPage(1); }} className="hover:text-red-500 font-bold ml-1">×</button>
+                                </span>
+                            )}
+                            {startDate && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
+                                    Joined from: {startDate}
+                                    <button onClick={() => { setStartDate(''); setPage(1); }} className="hover:text-red-500 font-bold ml-1">×</button>
+                                </span>
+                            )}
+                            {endDate && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
+                                    Joined to: {endDate}
+                                    <button onClick={() => { setEndDate(''); setPage(1); }} className="hover:text-red-500 font-bold ml-1">×</button>
+                                </span>
+                            )}
                             <button
                                 onClick={() => {
                                     setSearchTerm('');
                                     setRoleFilter('ALL');
+                                    setUserTypeFilter('ALL');
+                                    setStartDate('');
+                                    setEndDate('');
                                     setCompanyFilter('');
+                                    setPage(1);
                                 }}
-                                className="text-xs text-[#5da28c] hover:text-[#4a8572] font-semibold ml-auto"
+                                className="text-sm text-red-500 hover:text-red-700 font-semibold ml-2 transition-colors"
                             >
                                 Clear all
                             </button>
@@ -604,7 +795,9 @@ export default function UsersPage() {
                     )}
                 </div>
 
-                {/* Table */}
+
+
+                {/* Users Table */}
                 <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
@@ -680,8 +873,8 @@ export default function UsersPage() {
                                             </td>
                                             <td className="px-4 py-3 md:px-6 md:py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <button 
-                                                        onClick={() => setSelectedUser(user)} 
+                                                    <button
+                                                        onClick={() => setSelectedUser(user)}
                                                         className="text-slate-400 hover:text-slate-600 transition-colors"
                                                         title="View details"
                                                     >
@@ -689,9 +882,9 @@ export default function UsersPage() {
                                                     </button>
                                                     {currentUser?.role === 'admin' && user.id !== parseInt(currentUser.id) && (
                                                         <>
-                                                            
-                                                            <button 
-                                                                onClick={() => handleDeleteUser(user.id)} 
+
+                                                            <button
+                                                                onClick={() => handleDeleteUser(user.id)}
                                                                 className="text-red-400 hover:text-red-600 transition-colors"
                                                                 title="Delete user"
                                                             >
@@ -731,11 +924,10 @@ export default function UsersPage() {
                                             <button
                                                 key={pageNum}
                                                 onClick={() => setPage(pageNum)}
-                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                                                    page === pageNum
-                                                        ? 'bg-[#5da28c] text-white'
-                                                        : 'text-slate-700 hover:bg-slate-50'
-                                                }`}
+                                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${page === pageNum
+                                                    ? 'bg-[#5da28c] text-white'
+                                                    : 'text-slate-700 hover:bg-slate-50'
+                                                    }`}
                                             >
                                                 {pageNum}
                                             </button>

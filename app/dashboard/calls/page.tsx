@@ -115,8 +115,8 @@ function CallDetailsModal({ call, onClose }: { call: CallLog; onClose: () => voi
                 </div>
                 <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center rounded-b-xl">
                     {user?.role === 'admin' ? (
-                        <button 
-                            onClick={() => alert(`Deleting ${call.id}`)} 
+                        <button
+                            onClick={() => alert(`Deleting ${call.id}`)}
                             className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-2"
                         >
                             <Trash2 size={16} />
@@ -135,8 +135,10 @@ export default function CallLogsPage() {
     const [calls, setCalls] = useState<CallLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
-    const [total, setTotal] = useState(0);
+    const [totalCalls, setTotalCalls] = useState(0);
     const [totalCost, setTotalCost] = useState(0);
+    const [avgDuration, setAvgDuration] = useState(0);
+    const [successRate, setSuccessRate] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
@@ -157,7 +159,7 @@ export default function CallLogsPage() {
         try {
             setLoading(true);
             const isAdminView = user.role === 'admin';
-            
+
             const params = new URLSearchParams({
                 page: page.toString(),
                 limit: '20',
@@ -171,8 +173,8 @@ export default function CallLogsPage() {
                 params.append('status', statusFilter.replace(/ /g, '_').toUpperCase());
             }
 
-            if (startDate) params.append('startDate', new Date(startDate).toISOString());
-            if (endDate) params.append('endDate', new Date(endDate).toISOString());
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
 
             const res = await fetch(`/api/calls/logs?${params.toString()}`, { cache: 'no-store' });
             const data = await res.json();
@@ -189,8 +191,10 @@ export default function CallLogsPage() {
             });
 
             setCalls(transformedLogs);
-            setTotal(data.pagination?.total || 0);
-            setTotalCost(data.totalCost || 0);
+            setTotalCalls(data.summary?.totalCalls || 0);
+            setTotalCost(data.summary?.totalCost || 0);
+            setAvgDuration(data.summary?.totalCalls > 0 ? data.summary.totalDuration / data.summary.totalCalls : 0);
+            setSuccessRate(data.summary?.successRate || 0);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching calls:', error);
@@ -201,7 +205,7 @@ export default function CallLogsPage() {
     useEffect(() => {
         fetchCalls();
     }, [fetchCalls]);
-    
+
     const filteredCalls = calls.filter(call => {
         const matchesSearch = (call.phone_number && call.phone_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
             (call.call_id && call.call_id.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -217,7 +221,7 @@ export default function CallLogsPage() {
     });
 
 
-    const totalPages = Math.ceil(total / 20);
+    const totalPages = Math.ceil(totalCalls / 20);
 
     function handleExport() {
         const headers = ['Time', 'Call ID', 'Phone Number', 'Duration', 'Status', 'Cost'];
@@ -372,13 +376,22 @@ export default function CallLogsPage() {
 
                         {/* Summary Info (Admin only) */}
                         {user.role === 'admin' && (
-                            <div className="bg-slate-50 rounded-lg p-3 flex flex-col justify-center border border-slate-100">
-                                <div className="flex justify-between items-center text-xs text-slate-500 mb-1">
-                                    <span>Filtered Total</span>
-                                    <span className="font-mono">{total} calls</span>
+                            <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+                                <div className="bg-[#5da28c]/5 rounded-xl p-4 border border-[#5da28c]/10">
+                                    <div className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-semibold">Total Cost</div>
+                                    <div className="text-2xl font-bold text-[#5da28c]">₦{totalCost.toFixed(2)}</div>
                                 </div>
-                                <div className="text-lg font-bold text-[#5da28c]">
-                                    ₦{totalCost.toFixed(2)}
+                                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                                    <div className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-semibold">Total Calls</div>
+                                    <div className="text-2xl font-bold text-blue-600 font-mono">{totalCalls}</div>
+                                </div>
+                                <div className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                                    <div className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-semibold">Avg Duration</div>
+                                    <div className="text-2xl font-bold text-purple-600 font-mono">{avgDuration.toFixed(1)}s</div>
+                                </div>
+                                <div className={`rounded-xl p-4 border ${successRate > 70 ? 'bg-emerald-50 border-emerald-100' : 'bg-orange-50 border-orange-100'}`}>
+                                    <div className="text-xs text-slate-500 mb-1 uppercase tracking-wider font-semibold">Success Rate</div>
+                                    <div className={`text-2xl font-bold ${successRate > 70 ? 'text-emerald-600' : 'text-orange-600'} font-mono`}>{successRate.toFixed(1)}%</div>
                                 </div>
                             </div>
                         )}
@@ -482,13 +495,14 @@ export default function CallLogsPage() {
                                     </tr>
                                 ) : (
                                     filteredCalls.map((call) => (
-                                        <tr 
-                                            key={call.id} 
+                                        <tr
+                                            key={call.id}
                                             className="group hover:bg-slate-50 transition-colors cursor-pointer"
                                             onClick={() => setSelectedCall(call)}
                                         >
                                             <td className="px-4 py-3 md:px-6 md:py-4 text-slate-600 font-mono text-xs">
-                                                                                                  {formatDate(call.created_at, 'MMM dd, HH:mm:ss')}                                            </td>
+                                                {formatDate(call.created_at, 'MMM dd, HH:mm:ss')}
+                                            </td>
                                             {user.role === 'admin' && (
                                                 <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-slate-900">
                                                     {call.user?.name || call.user?.email?.split('@')[0] || 'Unknown'}
@@ -498,11 +512,12 @@ export default function CallLogsPage() {
                                                 {call.call_id ? `${call.call_id.slice(0, 12)}...` : '-'}
                                             </td>
                                             <td className="px-4 py-3 md:px-6 md:py-4 font-medium text-slate-900">
-                                                                                                  {call.phone_number ? (
-                                                                                                      call.phone_number.length > 8
-                                                                                                          ? `${call.phone_number.slice(0, 4)}••••${call.phone_number.slice(-4)}`
-                                                                                                          : call.phone_number
-                                                                                                  ) : ''}                                            </td>
+                                                {call.phone_number ? (
+                                                    call.phone_number.length > 8
+                                                        ? `${call.phone_number.slice(0, 4)}••••${call.phone_number.slice(-4)}`
+                                                        : call.phone_number
+                                                ) : ''}
+                                            </td>
                                             <td className="px-4 py-3 md:px-6 md:py-4 text-slate-600">
                                                 {call.duration ? `${call.duration}s` : '-'}
                                             </td>
@@ -527,8 +542,8 @@ export default function CallLogsPage() {
                         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
                             <p className="text-sm text-slate-500">
                                 Showing <span className="font-medium text-slate-900">{((page - 1) * 20) + 1}</span> to{' '}
-                                <span className="font-medium text-slate-900">{Math.min(page * 20, total)}</span> of{' '}
-                                <span className="font-medium text-slate-900">{total}</span> results
+                                <span className="font-medium text-slate-900">{Math.min(page * 20, totalCalls)}</span> of{' '}
+                                <span className="font-medium text-slate-900">{totalCalls}</span> results
                             </p>
                             <div className="flex items-center gap-2">
                                 <button
@@ -546,8 +561,8 @@ export default function CallLogsPage() {
                                                 key={pageNum}
                                                 onClick={() => setPage(pageNum)}
                                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${page === pageNum
-                                                        ? 'bg-[#5da28c] text-white'
-                                                        : 'text-slate-700 hover:bg-slate-50'
+                                                    ? 'bg-[#5da28c] text-white'
+                                                    : 'text-slate-700 hover:bg-slate-50'
                                                     }`}
                                             >
                                                 {pageNum}

@@ -5,6 +5,13 @@ import { generateApiKey } from '@/lib/utils';
 
 export async function GET() {
   try {
+    // Self-healing: Ensure user_type column exists
+    try {
+      await db.$executeRaw`ALTER TABLE "vp_user" ADD COLUMN IF NOT EXISTS "user_type" VARCHAR(50) DEFAULT 'prepaid';`;
+    } catch (e) {
+      console.warn("Schema patch failed (user_type):", e);
+    }
+
     const user = await getCurrentUser();
 
     if (!user) {

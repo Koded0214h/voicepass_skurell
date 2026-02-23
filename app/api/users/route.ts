@@ -9,8 +9,15 @@ const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
     try {
+        // Self-healing: Ensure user_type column exists
+        try {
+            await db.$executeRaw`ALTER TABLE "vp_user" ADD COLUMN IF NOT EXISTS "user_type" VARCHAR(50) DEFAULT 'prepaid';`;
+        } catch (e) {
+            console.warn("Schema patch failed (user_type):", e);
+        }
+
         const currentUser = await getCurrentUser();
-        
+
         if (!currentUser) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -24,6 +31,11 @@ export async function GET(req: NextRequest) {
         const page = parseInt(searchParams.get('page') || '1');
         const limit = parseInt(searchParams.get('limit') || '20');
         const role = searchParams.get('role');
+        const userType = searchParams.get('userType');
+        const search = searchParams.get('search');
+        const company = searchParams.get('company');
+        const startDate = searchParams.get('startDate');
+        const endDate = searchParams.get('endDate');
         const skip = (page - 1) * limit;
 
         const where: any = {};
@@ -31,8 +43,36 @@ export async function GET(req: NextRequest) {
             where.role = role;
         }
 
-        const [users, total] = await Promise.all([
-            prisma.vp_user.findMany({
+        if (userType && userType !== 'ALL') {
+            where.user_type = userType.toLowerCase();
+        }
+
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: 'insensitive' } },
+                { email: { contains: search, mode: 'insensitive' } },
+            ];
+        }
+
+        if (company) {
+            where.company = { contains: company, mode: 'insensitive' };
+        }
+
+        if (startDate || endDate) {
+            where.created_at = {};
+            if (startDate) {
+                where.created_at.gte = new Date(startDate);
+            }
+            if (endDate) {
+                // Set to end of day
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                where.created_at.lte = end;
+            }
+        }
+
+        const [users, total, totalBalanceResult] = await Promise.all([
+            db.vp_user.findMany({
                 where,
                 select: {
                     id: true,
@@ -51,8 +91,37 @@ export async function GET(req: NextRequest) {
                 skip,
                 take: limit,
             }),
-            prisma.vp_user.count({ where }),
+            db.vp_user.count({ where }),
+            db.vp_user.aggregate({
+                _sum: { balance: true },
+                where
+            }),
         ]);
+
+        // Calculate totalSpent separately to avoid potential issues with complex nested aggregates
+        // Especially if many users match the filters
+        let totalSpent = 0;
+        try {
+            const usersForSpent = await db.vp_user.findMany({
+                where,
+                select: { id: true }
+            });
+            const userIds = usersForSpent.map(u => u.id);
+
+            if (userIds.length > 0) {
+                const spentResult = await db.vp_call_log.aggregate({
+                    _sum: { cost: true },
+                    where: {
+                        user_id: { in: userIds }
+                    }
+                });
+                totalSpent = spentResult._sum.cost || 0;
+            }
+        } catch (e) {
+            console.error("Error calculating total spent:", e);
+        }
+
+        const totalBalance = totalBalanceResult._sum.balance || 0;
 
         // Transform to match frontend expectations
         const transformedUsers = users.map(user => ({
@@ -77,6 +146,11 @@ export async function GET(req: NextRequest) {
                 total,
                 totalPages: Math.ceil(total / limit),
             },
+            summary: {
+                totalUsers: total,
+                totalBalance,
+                totalSpent,
+            }
         });
     } catch (error) {
         console.error('Error fetching users:', error);
@@ -87,7 +161,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const currentUser = await getCurrentUser();
-        
+
         if (!currentUser || currentUser.role !== 'admin') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -96,14 +170,14 @@ export async function POST(req: NextRequest) {
 
         // Check if user exists
         const existing = await db.vp_user.findUnique({
-          where: { email },
+            where: { email },
         });
 
         if (existing) {
-          return NextResponse.json(
-            { error: 'Email already registered' },
-            { status: 400 }
-          );
+            return NextResponse.json(
+                { error: 'Email already registered' },
+                { status: 400 }
+            );
         }
 
         // Hash password
@@ -111,30 +185,30 @@ export async function POST(req: NextRequest) {
 
         // Create user with generated API key
         const user = await db.vp_user.create({
-          data: {
-            email,
-            password: hashedPassword,
-            name,
-            company,
-            phone: phone_number,
-            role: role || 'user',
-            user_type: user_type || 'prepaid',
-            is_active: true,
-            api_key: generateApiKey(),
-          },
+            data: {
+                email,
+                password: hashedPassword,
+                name,
+                company,
+                phone: phone_number,
+                role: role || 'user',
+                user_type: user_type || 'prepaid',
+                is_active: true,
+                api_key: generateApiKey(),
+            },
         });
 
         return NextResponse.json({
-          success: true,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            user_type: user.user_type,
-            company: user.company,
-            phone_number: user.phone,
-          },
+            success: true,
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                user_type: user.user_type,
+                company: user.company,
+                phone_number: user.phone,
+            },
         });
     } catch (error: any) {
         console.error('User creation error:', error);

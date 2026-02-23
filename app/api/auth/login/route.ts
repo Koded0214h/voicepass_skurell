@@ -5,11 +5,12 @@ import { createSession, setSessionCookie } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    // Self-healing: Ensure is_active column exists
+    // Self-healing: Ensure critical columns exist
     try {
-      await db.$executeRaw`ALTER TABLE vp_user ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;`;
+      await db.$executeRaw`ALTER TABLE "vp_user" ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;`;
+      await db.$executeRaw`ALTER TABLE "vp_user" ADD COLUMN IF NOT EXISTS "user_type" VARCHAR(50) DEFAULT 'prepaid';`;
     } catch (e) {
-      console.warn("Schema patch failed (is_active):", e);
+      console.warn("Schema patch failed:", e);
     }
 
     const body = await req.json();

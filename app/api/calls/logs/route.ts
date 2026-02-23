@@ -44,20 +44,18 @@ export async function GET(req: Request) {
     }
 
     // Date filtering
-    // Since created_at in schema is String? @db.VarChar(100), we need to be careful.
-    // However, if we can assume it's ISO format or similar, we can use it.
+    // Database uses UNIX timestamps (seconds) stored as strings.
     if (startDate || endDate) {
         where.created_at = {};
         if (startDate) {
-            // Prisma might struggle with String range if not ISO. 
-            // If they are stored as ISO strings, it works.
-            where.created_at.gte = startDate;
+            const start = Math.floor(new Date(startDate).getTime() / 1000);
+            where.created_at.gte = start.toString();
         }
         if (endDate) {
-            // Add time to end date to include the full day
             const end = new Date(endDate);
             end.setHours(23, 59, 59, 999);
-            where.created_at.lte = end.toISOString();
+            const endTs = Math.floor(end.getTime() / 1000);
+            where.created_at.lte = endTs.toString();
         }
     }
 
@@ -87,8 +85,11 @@ export async function GET(req: Request) {
       );
     }
 
-    // Calculate total cost for the current selection (useful for billing)
+    // Calculate statistics for the current selection
     const totalCost = filteredLogs.reduce((acc, log) => acc + (log.cost || 0), 0);
+    const totalDuration = filteredLogs.reduce((acc, log) => acc + (parseInt(log.duration || '0')), 0);
+    const successfulCalls = filteredLogs.filter(log => ['answered', 'completed'].includes(log.status?.toLowerCase() || '')).length;
+    const successRate = filteredLogs.length > 0 ? (successfulCalls / filteredLogs.length) * 100 : 0;
 
     // Pagination
     const total = filteredLogs.length;
@@ -98,7 +99,12 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       logs: paginatedLogs,
-      totalCost,
+      summary: {
+        totalCost,
+        totalDuration,
+        successRate,
+        totalCalls: total,
+      },
       pagination: {
         total,
         pages: Math.ceil(total / limit),
