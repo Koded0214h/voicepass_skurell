@@ -701,7 +701,7 @@ export default function UsersPage() {
                         {/* Start Date */}
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                Joined From
+                                Activity From
                             </label>
                             <input
                                 type="date"
@@ -717,7 +717,7 @@ export default function UsersPage() {
                         {/* End Date */}
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                Joined To
+                                Activity To
                             </label>
                             <input
                                 type="date"
@@ -767,13 +767,13 @@ export default function UsersPage() {
                             )}
                             {startDate && (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
-                                    Joined from: {startDate}
+                                    Activity from: {startDate}
                                     <button onClick={() => { setStartDate(''); setPage(1); }} className="hover:text-red-500 font-bold ml-1">×</button>
                                 </span>
                             )}
                             {endDate && (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full">
-                                    Joined to: {endDate}
+                                    Activity to: {endDate}
                                     <button onClick={() => { setEndDate(''); setPage(1); }} className="hover:text-red-500 font-bold ml-1">×</button>
                                 </span>
                             )}

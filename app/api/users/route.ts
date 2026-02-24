@@ -59,16 +59,20 @@ export async function GET(req: NextRequest) {
         }
 
         if (startDate || endDate) {
-            where.created_at = {};
+            const callLogDateFilter: any = {};
             if (startDate) {
-                where.created_at.gte = new Date(startDate);
+                callLogDateFilter.gte = new Date(startDate).toISOString();
             }
             if (endDate) {
-                // Set to end of day
                 const end = new Date(endDate);
                 end.setHours(23, 59, 59, 999);
-                where.created_at.lte = end;
+                callLogDateFilter.lte = end.toISOString();
             }
+            where.call_logs = {
+                some: {
+                    created_at: callLogDateFilter
+                }
+            };
         }
 
         const [users, total, totalBalanceResult] = await Promise.all([
@@ -109,11 +113,25 @@ export async function GET(req: NextRequest) {
             const userIds = usersForSpent.map(u => u.id);
 
             if (userIds.length > 0) {
+                const callLogWhere: any = {
+                    user_id: { in: userIds }
+                };
+
+                if (startDate || endDate) {
+                    callLogWhere.created_at = {};
+                    if (startDate) {
+                        callLogWhere.created_at.gte = new Date(startDate).toISOString();
+                    }
+                    if (endDate) {
+                        const end = new Date(endDate);
+                        end.setHours(23, 59, 59, 999);
+                        callLogWhere.created_at.lte = end.toISOString();
+                    }
+                }
+
                 const spentResult = await db.vp_call_log.aggregate({
                     _sum: { cost: true },
-                    where: {
-                        user_id: { in: userIds }
-                    }
+                    where: callLogWhere
                 });
                 totalSpent = spentResult._sum.cost || 0;
             }
