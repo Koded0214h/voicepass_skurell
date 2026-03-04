@@ -23,20 +23,8 @@ export async function POST(req: Request) {
     // Normalize status for comparison (lowercase, underscores to spaces)
     const normalizedStatus = (status || '').toLowerCase().replace(/_/g, ' ');
 
-    // All possible final statuses that should NOT be charged
-    const nonBillableStatuses = [
-      'no answer',
-      'noanswer',        // exact string from your provider
-      'failed',
-      'busy',
-      'rejected',
-      'unavailable',
-      'canceled',
-      'timeout',
-      'no-answer'
-    ];
-
-    const isNonBillable = nonBillableStatuses.includes(normalizedStatus);
+    // Any status other than 'answered' is non-billable
+    const isNonBillable = normalizedStatus !== 'answered';
 
     // Determine final cost:
     // - If non‑billable -> 0

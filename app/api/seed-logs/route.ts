@@ -28,8 +28,8 @@ export async function POST(req: Request) {
     console.log(`🌱 Seeding 5 call logs for User #${userId}...`);
     for (let c = 1; c <= 5; c++) {
       const status = c % 3 === 0 ? "FAILED" : "ANSWERED";
-      const cost = status === "FAILED" ? 0 : 3.5;
-      
+      const cost = status !== "ANSWERED" ? 0 : 3.5;
+
       await db.vp_call_log.create({
         data: {
           user_id: Number(userId),

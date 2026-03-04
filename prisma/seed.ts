@@ -20,7 +20,7 @@ async function main() {
   console.log("✅ Database reset complete.");
 
   console.log("\n🌱 Seeding database with fresh data...");
-  
+
   // 1. Create Admin User
   const adminPasswordHash = await hash("admin123", 10);
   const adminUser = await prisma.vp_user.create({
@@ -45,7 +45,7 @@ async function main() {
   // We use a fixed API key so you can easily copy it for testing
   const testUserApiKey = "vp_test_key_123456789";
   const passwordHash = await hash("password123", 10);
-  
+
   const testUser = await prisma.vp_user.create({
     data: {
       email: "test@voicepass.com",
