@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     const callCost = 3.5; // Fixed cost per call
 
     // Check sufficient balance
-    if ((dbUser.balance || 0) < callCost) {
+    if ((dbUser.balance ?? 0) < callCost) {
       return NextResponse.json({ error: 'Insufficient balance' }, { status: 402 });
     }
 
@@ -77,8 +77,8 @@ export async function POST(req: Request) {
           user_id: Number(user.id),
           type: 'DEBIT',
           amount: callCost,
-          balance_before: (dbUser.balance || 0),
-          balance_after: updatedUser.balance,
+          balance_before: dbUser.balance ?? 0,
+          balance_after: updatedUser.balance ?? 0,
           description: `Call initiation charge for call ${callId}`,
           reference: `CALL-${callId}`,
         }

@@ -20,11 +20,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Call log not found' }, { status: 404 });
     }
 
-    // Normalize status for comparison
+    // Normalize status for comparison (lowercase, underscores to spaces)
     const normalizedStatus = (status || '').toLowerCase().replace(/_/g, ' ');
 
-    // Statuses that should NOT be charged
-    const nonBillableStatuses = ['no answer', 'failed', 'busy', 'rejected', 'unavailable', 'canceled'];
+    // All possible final statuses that should NOT be charged
+    const nonBillableStatuses = [
+      'no answer',
+      'noanswer',        // exact string from your provider
+      'failed',
+      'busy',
+      'rejected',
+      'unavailable',
+      'canceled',
+      'timeout',
+      'no-answer'
+    ];
+
     const isNonBillable = nonBillableStatuses.includes(normalizedStatus);
 
     // Determine final cost:
@@ -41,7 +52,7 @@ export async function POST(req: Request) {
     await db.$transaction(async (tx) => {
       // If the call is non‑billable and the log still has a positive cost, refund the user
       if (isNonBillable && callLog.cost && callLog.cost > 0 && callLog.user_id) {
-        const refundAmount = callLog.cost; // guaranteed to be >0 and not null
+        const refundAmount = callLog.cost; // guaranteed >0 and not null
 
         // Increase user's balance
         const updatedUser = await tx.vp_user.update({
