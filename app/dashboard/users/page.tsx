@@ -465,6 +465,7 @@ export default function UsersPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [totalBalance, setTotalBalance] = useState(0);
     const [totalSpent, setTotalSpent] = useState(0);
+    const [totalCalls, setTotalCalls] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [userTypeFilter, setUserTypeFilter] = useState('ALL');
@@ -498,6 +499,7 @@ export default function UsersPage() {
             setTotalPages(data.pagination?.totalPages || 1);
             setTotalBalance(data.summary?.totalBalance || 0);
             setTotalSpent(data.summary?.totalSpent || 0);
+            setTotalCalls(data.summary?.totalCalls || 0);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching users:', error);
@@ -603,8 +605,8 @@ export default function UsersPage() {
                             </div>
                         </div>
                         <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
-                            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Balance</p>
-                            <h3 className="text-2xl font-bold text-[#5da28c]">₦{totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Calls</p>
+                            <h3 className="text-2xl font-bold text-[#5da28c]">{totalCalls.toLocaleString()}</h3>
                         </div>
                         <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
                             <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Total Costs (Spent)</p>

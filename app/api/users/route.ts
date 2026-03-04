@@ -102,9 +102,10 @@ export async function GET(req: NextRequest) {
             }),
         ]);
 
-        // Calculate totalSpent separately to avoid potential issues with complex nested aggregates
+        // Calculate totalSpent and totalCalls separately to avoid potential issues with complex nested aggregates
         // Especially if many users match the filters
         let totalSpent = 0;
+        let totalCallsCount = 0;
         try {
             const usersForSpent = await db.vp_user.findMany({
                 where,
@@ -131,12 +132,14 @@ export async function GET(req: NextRequest) {
 
                 const spentResult = await db.vp_call_log.aggregate({
                     _sum: { cost: true },
+                    _count: { _all: true },
                     where: callLogWhere
                 });
                 totalSpent = spentResult._sum.cost || 0;
+                totalCallsCount = spentResult._count._all || 0;
             }
         } catch (e) {
-            console.error("Error calculating total spent:", e);
+            console.error("Error calculating summary stats:", e);
         }
 
         const totalBalance = totalBalanceResult._sum.balance || 0;
@@ -168,6 +171,7 @@ export async function GET(req: NextRequest) {
                 totalUsers: total,
                 totalBalance,
                 totalSpent,
+                totalCalls: totalCallsCount,
             }
         });
     } catch (error) {
