@@ -23,8 +23,12 @@ export async function POST(req: Request) {
     // Normalize status for comparison (lowercase, underscores to spaces)
     const normalizedStatus = (status || '').toLowerCase().replace(/_/g, ' ');
 
-    // Any status other than 'answered' is non-billable
-    const isNonBillable = normalizedStatus !== 'answered';
+    // A call is only definitively non-billable if it's final and not answered
+    const isAnswered = normalizedStatus === 'answered' || normalizedStatus === 'completed';
+    const pendingStatuses = ['queue', 'ringing', 'initiated', 'in-progress', 'in progress'];
+    const isPending = pendingStatuses.includes(normalizedStatus);
+
+    const isNonBillable = !isAnswered && !isPending;
 
     // Determine final cost:
     // - If non‑billable -> 0

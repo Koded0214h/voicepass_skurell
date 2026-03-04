@@ -63,38 +63,53 @@ export async function POST(req: Request) {
     const callId = data.call_id || `CID-${Date.now()}`;
     const statusFromProvider = data.status?.toUpperCase() || 'INITIATED';
 
+    const isAnswered = statusFromProvider === 'ANSWERED';
+    const isProcessing = ['INITIATED', 'QUEUE', 'RINGING', 'IN-PROGRESS'].includes(statusFromProvider);
+    // If it's not answered and not processing, it's a failed/non-billable immediate outcome
+    const isImmediateNonBillable = !isAnswered && !isProcessing;
+
+    const finalCost = isImmediateNonBillable ? 0 : callCost;
+
     // === Deduct balance and create call log atomically ===
     await db.$transaction(async (tx) => {
-      // Deduct the cost from user's balance
-      const updatedUser = await tx.vp_user.update({
-        where: { id: Number(user.id) },
-        data: { balance: { decrement: callCost } }
-      });
+      // Only deduct the cost from user's balance if it's billable/processing
+      let balanceDecrement = finalCost;
+      let finalBalanceAfter = dbUser.balance ?? 0;
 
-      // Create a transaction record for the debit
-      await tx.vp_transactions.create({
-        data: {
-          user_id: Number(user.id),
-          type: 'DEBIT',
-          amount: callCost,
-          balance_before: dbUser.balance ?? 0,
-          balance_after: updatedUser.balance ?? 0,
-          description: `Call initiation charge for call ${callId}`,
-          reference: `CALL-${callId}`,
-        }
-      });
+      if (finalCost > 0) {
+        const updatedUser = await tx.vp_user.update({
+          where: { id: Number(user.id) },
+          data: { balance: { decrement: finalCost } }
+        });
+        finalBalanceAfter = updatedUser.balance ?? 0;
 
-      // Create the call log with the cost (will be refunded later if unanswered)
+        // Create a transaction record for the debit
+        await tx.vp_transactions.create({
+          data: {
+            user_id: Number(user.id),
+            type: 'DEBIT',
+            amount: finalCost,
+            balance_before: dbUser.balance ?? 0,
+            balance_after: finalBalanceAfter,
+            description: `Call initiation charge for call ${callId}`,
+            reference: `CALL-${callId}`,
+          }
+        });
+      }
+
+      // Create the call log with the correct final cost
       await tx.vp_call_log.create({
         data: {
           user_id: Number(user.id),
           call_id: callId,
           phone_number: formattedPhone,
           otp: otp,
-          status: statusFromProvider,
-          cost: callCost,
+          status: statusFromProvider.toLowerCase(),
+          cost: finalCost,
           created_at: new Date().toISOString(),
           duration: '0',
+          answer_time: isAnswered ? new Date().toISOString() : null,
+          end_at: isImmediateNonBillable ? new Date().toISOString() : null,
         }
       });
     });
