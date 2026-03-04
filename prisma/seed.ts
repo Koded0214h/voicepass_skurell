@@ -85,20 +85,24 @@ async function main() {
   // 4. Create 10 Call Logs for the Test User
   console.log(`📞 Creating 10 call logs for User #${testUser.id}...`);
   for (let c = 1; c <= 10; c++) {
+    const status = c % 3 === 0 ? "FAILED" : "COMPLETED";
+    const cost = status === "FAILED" ? 0 : 3.5;
+    const duration = status === "FAILED" ? "0" : `${randomAmount(30, 300)}`;
+
     await prisma.vp_call_log.create({
       data: {
         user_id: testUser.id,
         call_id: `CALL-TEST-${c}`,
         gender: c % 2 === 0 ? "female" : "male",
-        cost: randomAmount(10, 100),
+        cost: cost,
         language: "en",
         phone_number: randomPhone(),
         otp: Math.floor(100000 + Math.random() * 900000).toString(),
-        status: c % 3 === 0 ? "FAILED" : "COMPLETED",
-        duration: `${randomAmount(30, 300)}`,
+        status: status,
+        duration: duration,
         created_at: new Date().toISOString(),
         start_time: new Date().toISOString(),
-        answer_time: new Date().toISOString(),
+        answer_time: status === "FAILED" ? null : new Date().toISOString(),
         ring_time: new Date().toISOString(),
         end_at: new Date().toISOString(),
       },
