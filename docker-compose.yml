@@ -1,5 +1,6 @@
 services:
   voicepass-web:
+    image: metzakaria/voicepass-web:latest
     build: .
     container_name: voicepass-web
     ports:
