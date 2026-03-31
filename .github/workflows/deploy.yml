@@ -30,6 +30,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Test Connectivity
+        run: |
+          echo "Testing connection to ${{ secrets.SERVER_IP }} on port ${{ secrets.SERVER_PORT || 22 }}..."
+          nc -zv -w 10 ${{ secrets.SERVER_IP }} ${{ secrets.SERVER_PORT || 22 }} || echo "Port is CLOSED or unreachable"
+
       - name: Deploy to Server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -37,8 +42,9 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 60s
-          command_timeout: 10m
+          timeout: 120s
+          command_timeout: 15m
+          debug: true
           script: |
             cd ${{ secrets.APP_PATH }}
             docker compose pull
