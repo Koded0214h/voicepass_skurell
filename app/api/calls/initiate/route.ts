@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth';
 
+
 export async function POST(req: Request) {
   try {
     const user = await getCurrentUser();
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + dbUser.api_key
+        "Authorization": "Bearer " + process.env.MASTER_KEY
       },
       body: JSON.stringify({
         phone: formattedPhone,
