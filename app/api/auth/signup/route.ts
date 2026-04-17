@@ -4,64 +4,115 @@ import { hashPassword } from '@/lib/encryption';
 import { createSession, setSessionCookie } from '@/lib/auth';
 import { generateApiKey } from '@/lib/utils';
 
+function normalizePhone(phone: string): string {
+  let p = String(phone).replace(/\s/g, '').replace(/^\+/, '');
+  if (p.startsWith('0')) p = '234' + p.slice(1);
+  else if (!p.startsWith('234')) p = '234' + p;
+  return p;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Self-healing: Ensure is_active column exists
+    // Self-heal: ensure required columns and OTP table exist
     try {
       await db.$executeRaw`ALTER TABLE vp_user ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;`;
+      await db.$executeRaw`ALTER TABLE vp_user ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT false;`;
+      await db.$executeRaw`
+        CREATE TABLE IF NOT EXISTS vp_phone_otp (
+          id SERIAL PRIMARY KEY,
+          phone VARCHAR(50) NOT NULL,
+          otp VARCHAR(10) NOT NULL,
+          expires_at TIMESTAMP NOT NULL,
+          used BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+      `;
     } catch (e) {
-      console.warn("Schema patch failed (is_active):", e);
+      console.warn('Schema patch failed:', e);
     }
 
-    const { email, password, name } = await req.json();
+    const { email, password, name, phone, otp } = await req.json();
 
-    // Check if user exists
-    const existing = await db.vp_user.findUnique({
-      where: { email },
-    });
-
-    if (existing) {
+    if (!phone || !otp) {
       return NextResponse.json(
-        { error: 'Email already registered' },
+        { error: 'Phone number and verification code are required' },
         { status: 400 }
       );
     }
 
-    // Hash password
+    const formattedPhone = normalizePhone(phone);
+
+    // Verify OTP
+    const otpRecords = await db.$queryRaw<
+      Array<{ id: number; otp: string; expires_at: Date; used: boolean }>
+    >`
+      SELECT id, otp, expires_at, used FROM vp_phone_otp
+      WHERE phone = ${formattedPhone} AND used = false
+      ORDER BY created_at DESC LIMIT 1;
+    `;
+
+    if (!otpRecords.length) {
+      return NextResponse.json(
+        { error: 'No verification code found. Please request a new one.' },
+        { status: 400 }
+      );
+    }
+
+    const otpRecord = otpRecords[0];
+
+    if (new Date() > new Date(otpRecord.expires_at)) {
+      return NextResponse.json(
+        { error: 'Verification code has expired. Please request a new one.' },
+        { status: 400 }
+      );
+    }
+
+    if (otpRecord.otp !== String(otp)) {
+      return NextResponse.json({ error: 'Invalid verification code' }, { status: 400 });
+    }
+
+    // Mark OTP as used
+    await db.$executeRaw`UPDATE vp_phone_otp SET used = true WHERE id = ${otpRecord.id};`;
+
+    // Check if email already exists
+    const existing = await db.vp_user.findUnique({ where: { email } });
+    if (existing) {
+      return NextResponse.json({ error: 'Email already registered' }, { status: 400 });
+    }
+
     const hashedPassword = await hashPassword(password);
 
-    // Create user with generated API key
     const user = await db.vp_user.create({
       data: {
         email,
         password: hashedPassword,
         name,
-        role: 'user', // Changed from client to user as per schema.prisma default
+        phone: formattedPhone,
+        role: 'user',
         user_type: 'prepaid',
         is_active: true,
         api_key: generateApiKey(),
       },
     });
 
-    // Create welcome transaction
+    // Mark phone as verified
+    await db.$executeRaw`UPDATE vp_user SET phone_verified = true WHERE id = ${user.id};`;
+
+    // Welcome bonus
     await db.vp_transactions.create({
       data: {
-        vp_user: {
-          connect: { id: user.id },
-        },
+        vp_user: { connect: { id: user.id } },
         type: 'CREDIT',
-        amount: 100, // Welcome bonus
+        amount: 100,
         description: 'Welcome bonus',
       },
     });
 
-    // Update balance
     await db.vp_user.update({
       where: { id: user.id },
       data: { balance: 100 },
     });
 
-    // Create session
     const token = createSession({
       id: user.id.toString(),
       email: user.email!,
@@ -88,9 +139,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Signup error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Signup failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || 'Signup failed' }, { status: 500 });
   }
 }

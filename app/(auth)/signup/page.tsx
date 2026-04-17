@@ -4,29 +4,62 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+type Step = 'details' | 'verify';
+
 export default function SignupPage() {
   const router = useRouter();
+  const [step, setStep] = useState<Step>('details');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
   });
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      setLoading(false);
       return;
     }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setSendingOtp(true);
+    try {
+      const res = await fetch('/api/auth/send-phone-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formData.phone }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send code');
+
+      setStep('verify');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send verification code');
+    } finally {
+      setSendingOtp(false);
+    }
+  }
+
+  async function handleVerifyAndSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
     try {
       const res = await fetch('/api/auth/signup', {
@@ -35,26 +68,39 @@ export default function SignupPage() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
+          phone: formData.phone,
           password: formData.password,
+          otp,
         }),
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Signup failed');
-      }
+      if (!res.ok) throw new Error(data.error || 'Signup failed');
 
       router.push('/dashboard');
       router.refresh();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unknown error occurred');
-      }
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResendOtp() {
+    setError('');
+    setSendingOtp(true);
+    try {
+      const res = await fetch('/api/auth/send-phone-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formData.phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend code');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to resend code');
+    } finally {
+      setSendingOtp(false);
     }
   }
 
@@ -63,134 +109,212 @@ export default function SignupPage() {
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-        
-        body {
-          font-family: 'Manrope', sans-serif;
-        }
+        body { font-family: 'Manrope', sans-serif; }
       `}</style>
 
       <main className="w-full max-w-[480px] animate-in fade-in zoom-in duration-500 ease-out">
         <div className="bg-white dark:bg-[#27272a] rounded-xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)] border border-slate-100 dark:border-zinc-800 p-8 sm:p-10 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#5da18b] to-transparent opacity-60"></div>
-          
+
           <div className="flex flex-col items-center gap-6 mb-8">
             <div className="flex flex-col items-center gap-2 group cursor-default">
               <div className="h-12 w-12 rounded-xl bg-[#5da18b]/10 flex items-center justify-center text-[#5da18b] transition-transform group-hover:scale-110 duration-300">
-                <span className="material-symbols-outlined text-[28px]">phone_in_talk</span>
+                <span className="material-symbols-outlined text-[28px]">
+                  {step === 'verify' ? 'phone_iphone' : 'phone_in_talk'}
+                </span>
               </div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                 VoicePass
               </h1>
             </div>
-            
+
             <div className="text-center space-y-1.5">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Create an Account</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                {step === 'verify' ? 'Verify Your Phone' : 'Create an Account'}
+              </h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Sign up to access the billing dashboard
+                {step === 'verify'
+                  ? `Enter the 4-digit code sent to ${formData.phone}`
+                  : 'Sign up to access the billing dashboard'}
               </p>
+            </div>
+
+            {/* Step indicator */}
+            <div className="flex items-center gap-2">
+              <div className={`h-2 w-8 rounded-full transition-colors ${step === 'details' ? 'bg-[#5da18b]' : 'bg-[#5da18b]'}`} />
+              <div className={`h-2 w-8 rounded-full transition-colors ${step === 'verify' ? 'bg-[#5da18b]' : 'bg-slate-200 dark:bg-zinc-700'}`} />
             </div>
           </div>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="fullname">
-                Full Name
-              </label>
-              <input
-                className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b]"
-                id="fullname"
-                placeholder="John Doe"
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="email">
-                Email Address
-              </label>
-              <input
-                className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b]"
-                id="email"
-                placeholder="name@example.com"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="password">
-                Password
-              </label>
-              <div className="relative group">
+          {step === 'details' ? (
+            <form className="space-y-4" onSubmit={handleSendOtp}>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="fullname">
+                  Full Name
+                </label>
                 <input
-                  className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b] pr-10"
-                  id="password"
-                  placeholder="••••••••"
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b]"
+                  id="fullname"
+                  placeholder="John Doe"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
-                <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {showPassword ? 'visibility' : 'visibility_off'}
-                  </span>
-                </button>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="confirm-password">
-                Confirm Password
-              </label>
-              <div className="relative group">
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="email">
+                  Email Address
+                </label>
                 <input
-                  className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b] pr-10"
-                  id="confirm-password"
-                  placeholder="••••••••"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b]"
+                  id="email"
+                  placeholder="name@example.com"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="phone">
+                  Phone Number
+                </label>
+                <input
+                  className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b]"
+                  id="phone"
+                  placeholder="08012345678"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+                <p className="text-xs text-slate-400">A 4-digit code will be called to this number</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="password">
+                  Password
+                </label>
+                <div className="relative group">
+                  <input
+                    className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b] pr-10"
+                    id="password"
+                    placeholder="••••••••"
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                  />
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    <span className="material-symbols-outlined text-[20px]">
+                      {showPassword ? 'visibility' : 'visibility_off'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="confirm-password">
+                  Confirm Password
+                </label>
+                <div className="relative group">
+                  <input
+                    className="flex h-11 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-sm text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b] pr-10"
+                    id="confirm-password"
+                    placeholder="••••••••"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    required
+                  />
+                  <button
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    <span className="material-symbols-outlined text-[20px]">
+                      {showConfirmPassword ? 'visibility' : 'visibility_off'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>
+              )}
+
+              <button
+                type="submit"
+                disabled={sendingOtp}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-bold transition-colors bg-[#5da18b] text-white hover:bg-[#4a8572] h-11 px-8 w-full shadow-sm mt-4 disabled:opacity-50"
+              >
+                {sendingOtp ? 'Sending code...' : 'Send Verification Code'}
+              </button>
+            </form>
+          ) : (
+            <form className="space-y-4" onSubmit={handleVerifyAndSignup}>
+              <div className="space-y-2">
+                <label className="text-sm font-medium leading-none text-slate-900 dark:text-slate-200" htmlFor="otp">
+                  Verification Code
+                </label>
+                <input
+                  className="flex h-14 w-full rounded-lg border border-[#e4e4e7] dark:border-[#3f3f46] bg-transparent px-3 py-1 text-2xl font-bold tracking-[0.5em] text-center text-slate-900 dark:text-slate-100 shadow-sm transition-all placeholder:text-slate-300 placeholder:tracking-normal placeholder:text-base focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#5da18b] focus-visible:border-[#5da18b]"
+                  id="otp"
+                  placeholder="----"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  required
+                  autoFocus
+                />
+                <p className="text-xs text-slate-400 text-center">
+                  Listen to the voice call and enter the 4-digit code
+                </p>
+              </div>
+
+              {error && (
+                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || otp.length < 4}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-bold transition-colors bg-[#5da18b] text-white hover:bg-[#4a8572] h-11 px-8 w-full shadow-sm mt-4 disabled:opacity-50"
+              >
+                {loading ? 'Creating account...' : 'Verify & Create Account'}
+              </button>
+
+              <div className="flex items-center justify-between text-sm mt-2">
                 <button
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                   type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  onClick={() => { setStep('details'); setError(''); setOtp(''); }}
+                  className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                 >
-                  <span className="material-symbols-outlined text-[20px]">
-                    {showConfirmPassword ? 'visibility' : 'visibility_off'}
-                  </span>
+                  ← Change details
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={sendingOtp}
+                  className="text-[#5da18b] hover:text-[#4a8572] font-medium disabled:opacity-50"
+                >
+                  {sendingOtp ? 'Sending...' : 'Resend code'}
                 </button>
               </div>
-            </div>
-
-            {error && (
-              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-bold transition-colors bg-[#5da18b] text-white hover:bg-[#4a8572] h-11 px-8 w-full shadow-sm mt-4 disabled:opacity-50"
-            >
-              {loading ? 'Creating account...' : 'Sign Up'}
-            </button>
-          </form>
+            </form>
+          )}
 
           <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            Already have an account? 
+            Already have an account?
             <Link className="font-semibold text-[#5da18b] hover:text-[#4a8572] hover:underline underline-offset-4 transition-colors ml-1" href="/login">
               Sign in
             </Link>
